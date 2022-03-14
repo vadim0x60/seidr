@@ -1,4 +1,4 @@
-from nl2ml import nl2ml
+from nl2ml import nl2ml, build_prompt
 
 from more_itertools import chunked
 import psb2
@@ -14,9 +14,9 @@ if __name__ == '__main__':
     scores = {}
 
     for problem in psb2.PROBLEMS:
-        train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 0, 2000, format='competitive')
-        header_txt = problem.replace('-', ' ') + '\n\n' + task_descriptions[problem]
-        solution = Program(nl2ml(header_txt), language='C++')
+        train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 2000, format='competitive')
+        prompt = build_prompt(problem, task_descriptions[problem], train_data)
+        solution = Program(nl2ml(prompt), language='C++')
         solution.save('solutions/' + problem + '.cpp')
         score = solution.score(test_data)
 

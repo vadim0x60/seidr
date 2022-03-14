@@ -5,7 +5,7 @@ from benchmark import task_descriptions, DATA_PATH
 from nl2ml import build_prompt
 
 if __name__ == '__main__':
-    examples, _ = psb2.fetch_examples(DATA_PATH, 'fizz-buzz', 2, 0, format='competitive')
+    examples, _ = psb2.fetch_examples(DATA_PATH, 'fizz-buzz', 5, 0, format='competitive')
     print(build_prompt('fizz-buzz', task_descriptions['fizz-buzz'], examples))
 
     fizzbuzz = Program("""
