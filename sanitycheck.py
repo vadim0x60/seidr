@@ -1,8 +1,7 @@
 import psb2
 from programlib import Program
-import os
 
-from .benchmark import build_prompt, task_descriptions, DATA_PATH
+from benchmark import build_prompt, task_descriptions, DATA_PATH
 
 if __name__ == '__main__':
     examples, _ = psb2.fetch_examples(DATA_PATH, 'fizz-buzz', 2, 0, format='competitive')
