@@ -6,19 +6,6 @@ from programlib import Program
 import os
 
 DATA_PATH = os.environ['DATA_PATH']
-
-def build_prompt(task, task_description, examples):
-    prompt = task
-    prompt += '\n\n'
-    prompt += task_description
-    prompt += '\n\nFox example: \n'
-    for sample_inputs, sample_outputs in examples:
-        for sample_input in sample_inputs:
-            prompt += '> ' + sample_input + '\n'
-        for sample_output in sample_outputs:
-            prompt += sample_output + '\n'
-        prompt += '\n'
-    return prompt
     
 with open('tasks.txt') as f:
     task_descriptions = {name.strip(): description.strip() for name, description in chunked(f.readlines(), 2)}
