@@ -1,0 +1,48 @@
+basement
+Given a vector of integers, return the ﬁrstindex such that the sum of all integers from the start of thevector to that index (inclusive) is negative.
+bouncing-balls
+Given a starting height and a heightafter the ﬁrst bounce of a dropped ball, calculate the bounciness index (height of ﬁrst bounce / starting height). Then, given a number of bounces, use the bounciness index to calculate the total distance that the ball travels across thosebounces.
+bowling
+Given a string representing the individualbowls in a 10-frame round of 10 pin bowling, return the score of that round.
+camel-case
+Take a string in kebab-case and convert all of the words to camelCase. Each group of words to convert is delimited by "-", and each grouping is separated by a space. For example: "camel-case example-test-string"-> "camelCase exampleTestString".
+coin-sums
+Given a number of cents, ﬁnd the fewest number of US coins (pennies, nickles, dimes, quarters) needed to make that amount, and return the number of each type of coin as a separate output.
+cut-vector
+Given a vector of positive integers, ﬁndthe spot where, if you cut the vector, the numbers on bothsides are either equal, or the diﬀerence is as small as possible.Return the two resulting subvectors as two outputs. 
+dice-game
+Peter has an n-sided die and Colin has an m-sided die. If they both roll their dice at the same time, returnthe probability that Peter rolls strictly higher than Colin. 
+find-pair
+Given a vector of integers, return the twoelements that sum to a target integer. 
+fizz-buzz
+Given an integer x, return "Fizz" if x isdivisible by 3, "Buzz" if x is divisible by 5, "FizzBuzz" if xis divisible by 3 and 5, and a string version of x if none ofthe above hold. 
+fuel-cost
+Given a vector of positive integers, divide each by 3, round the result down to the nearest integer, and subtract 2. Return the sum of all of the new integers in the vector.
+gcd
+Given two integers, return the largest integer that divides each of theintegers evenly. Indices of Substring (CW) Given a text string and a targetstring, return a vector of integers of the indices at which thetarget appears in the text. If the target string overlaps itselfin the text, all indices (including those overlapping) shouldbe returned. 
+leaders
+Given a vector of positive integers, return avector of the leaders in that vector. A leader is deﬁned as anumber that is greater than or equal to all the numbers tothe right of it. The rightmost element is always a leader. 
+luhn
+Given a vector of 16 digits, implement Luhn’salgorithm to verify a credit card number, such that it followsthe following rules: double every other digit starting withthe second digit. If any of the results are over 9, subtract 9 from them. Return the sum of all of the new digits. 
+mastermind 
+Based on the board game Mastermind. Given a Mastermind code and a guess, each of which are 4-character strings consisting of 6 possible characters, return the number of white pegs (correct color, wrong place) and black pegs (correct color, correct place) the codemaster should give as a clue.
+middle-character
+Given a string, return the middle character as a string if it is odd length; return the two middle characters as a string if it is even length. 
+paired-digits
+Given a string of digits, return the sumof the digits whose following digit is the same. 
+shopping-list
+Given a vector of ﬂoats representingthe prices of various shopping goods and another vector ofﬂoats representing the percent discount of each of thosegoods, return the total price of the shopping trip after applying the discount to each item. 
+snow-day
+Given an integer representing a numberof hours and 3 ﬂoats representing how much snow is on theground, the rate of snow fall, and the proportion of snow melting per hour, return the amount of snow on the ground after the amount of hours given. Each hour is considered adiscrete event of adding snow and then melting, not a continuous process.
+solve-boolean
+Given a string representing a Boolean expression consisting of T, F, |, and &, evaluate it and return the resulting Boolean. 
+spin-words
+Given a string of one or more words (separated by spaces), reverse all of the words that are ﬁve or more letters long and return the resulting string. 
+square-digits
+Given a positive integer, square each digit and concatenate the squares into a returned string. 
+substitution-cipher
+This problem gives 3 strings. The ﬁrst two represent a cipher, mapping each character in one string to the one at the same index in the other string.The program must apply this cipher to the third string andreturn the deciphered message. 
+twitter
+Given a string representing a tweet, validate whether the tweet meets Twitter’s original character requirements. If the tweet has more than 140 characters, return the string "Too many characters". If the tweet is empty, return the string "You didn't type anything". Otherwise, return "Your tweet has X characters", where the X is the number of characters in the tweet.
+vector-distance
+Given two n-dimensional vectors of floats, return the Euclidean distance between the two vectors in n-dimensional space.
