@@ -2,3 +2,4 @@ git+https://github.com/vadim0x60/psb2-python
 openai==0.*
 more-itertools==8.*
 programlib==1.*
+wandb==0.*
