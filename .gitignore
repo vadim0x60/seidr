@@ -3,3 +3,4 @@ __pycache__
 up
 wandb
 solutions
+slurm.sh

@@ -3,20 +3,28 @@ from more_itertools import chunked
 import psb2
 import os
 import wandb
+import random
 
+from github import ensure_repo, upload_file
 from pbe import program_by_example
 
 DATA_PATH = os.environ['DATA_PATH']
 HEAT_UP_RATE = 0.2
 MAX_TRIES = 1000
-    
+
 with open('tasks.txt') as f:
     task_descriptions = {name.strip(): description.strip() for name, description in chunked(f.readlines(), 2)}
 
+solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], 'solutions')
+solutions_repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
+solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
+
 if __name__ == '__main__':
-    for problem in psb2.PROBLEMS:
+    problems = psb2.PROBLEMS.copy()
+    random.shuffle(problems)
+    for problem in problems:
         try:
-            wandb.init(project='nl2ml-codex', config={'problem': problem, 'max_tries': MAX_TRIES, 'heat_up_rate': HEAT_UP_RATE})
+            run = wandb.init(project='nl2ml-codex', config={'problem': problem, 'max_tries': MAX_TRIES, 'heat_up_rate': HEAT_UP_RATE})
 
             description = task_descriptions[problem]
             train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 2000, format='competitive')
@@ -25,6 +33,8 @@ if __name__ == '__main__':
                                                             max_options=MAX_TRIES, heat_up_rate=HEAT_UP_RATE):
                 wandb.log({'step': step, 'score': score})
                 solution.save('solutions/' + problem + '.cpp')
+                upload_file(solutions_repo, problem + '.cpp', f'solved {score} of {problem}')
+                
             run.finish()
         except KeyError:
             pass
