@@ -25,5 +25,6 @@ if __name__ == '__main__':
                                                             max_options=MAX_TRIES, heat_up_rate=HEAT_UP_RATE):
                 wandb.log({'step': step, 'score': score})
                 solution.save('solutions/' + problem + '.cpp')
+            run.finish()
         except KeyError:
             pass
