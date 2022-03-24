@@ -1,12 +1,16 @@
+from urllib import response
 import openai
 from string import Template
 import os
+import time
+from tenacity import retry, retry_if_exception_type, wait_fixed
 
 openai.api_key = os.getenv("OPENAI")
 
 with open('template.cpp') as f:
     template = Template(f.read())
 
+@retry(retry=retry_if_exception_type(openai.error.RateLimitError), wait=wait_fixed(20))
 def nl2ml(nl_prompt, temperature=0):
     """
     Converts a natural language text to C++ programs.
