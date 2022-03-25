@@ -1,8 +1,5 @@
 .vscode
 __pycache__
-up
 wandb
 solutions
-slurm.sh
 .config
-play.ipynb
