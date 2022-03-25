@@ -5,3 +5,4 @@ programlib==1.*
 wandb==0.*
 GitPython==3.*
 tenacity==8.*
+pandas==1.*
