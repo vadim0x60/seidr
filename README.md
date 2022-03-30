@@ -1,0 +1,2 @@
+Testing OpenAI's [Codex](https://openai.com/blog/openai-codex/) model on [Program Synthesis Benchmark 2](https://github.com/thelmuth/psb2-python).
+See [The unreasonable effectiveness of language models for source code](https://vadim.me/posts/unreasonable).
