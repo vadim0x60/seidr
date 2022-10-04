@@ -19,7 +19,7 @@ def nl2ml(nl_prompt, lang='cpp', temperature=0.0):
     completion = openai.Completion.create(
         engine="code-davinci-001",
         prompt=ml_prompt,
-        temperature=0,
+        temperature=temperature,
         max_tokens= 2000,
         frequency_penalty=0.0,
         presence_penalty=0.0,
