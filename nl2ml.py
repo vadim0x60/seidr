@@ -2,19 +2,17 @@ from urllib import response
 import openai
 from string import Template
 import os
-import time
+from fire import Fire
 from tenacity import retry, retry_if_exception_type, wait_fixed
 
-openai.api_key = os.getenv("OPENAI")
-
-with open('template.cpp') as f:
-    template = Template(f.read())
-
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError), wait=wait_fixed(20))
-def nl2ml(nl_prompt, temperature=0):
+def nl2ml(nl_prompt, lang='cpp', temperature=0.0):
     """
     Converts a natural language text to C++ programs.
     """
+
+    with open(f'template.{lang}') as f:
+        template = Template(f.read())
 
     ml_prompt = template.substitute(prompt=nl_prompt)
 
@@ -41,4 +39,4 @@ def nl2ml_options(nl_prompt, heat_up_rate=0.2):
             for temperature in heat_up(rate=heat_up_rate))
 
 if __name__ == '__main__':
-    print(nl2ml(input()))
+    Fire(nl2ml)

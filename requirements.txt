@@ -6,3 +6,4 @@ wandb==0.*
 GitPython==3.*
 tenacity==8.*
 pandas==1.*
+fire==0.*
