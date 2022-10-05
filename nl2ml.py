@@ -34,8 +34,8 @@ def heat_up(rate=0.2):
         temperature = temperature + (1 - temperature) * rate
         yield temperature
 
-def nl2ml_options(nl_prompt, heat_up_rate=0.2):
-    return (nl2ml(nl_prompt, temperature=temperature)
+def nl2ml_options(nl_prompt, heat_up_rate=0.2, lang='cpp'):
+    return (nl2ml(nl_prompt, temperature=temperature, lang=lang)
             for temperature in heat_up(rate=heat_up_rate))
 
 if __name__ == '__main__':

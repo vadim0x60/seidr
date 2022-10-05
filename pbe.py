@@ -14,12 +14,13 @@ def build_prompt(task, task_description, examples):
         prompt += '\n'
     return prompt
 
-def program_by_example(task, task_description, train_samples, test_samples, max_options=1000, heat_up_rate=0.2):
+def program_by_example(task, task_description, train_samples, test_samples, 
+                       max_options=1000, heat_up_rate=0.2, lang='cpp'):
     prompt = build_prompt(task, task_description, train_samples)
 
-    best_score = 0
+    best_score = -1
 
-    for i, option in enumerate(nl2ml_options(prompt, heat_up_rate=heat_up_rate)):
+    for i, option in enumerate(nl2ml_options(prompt, heat_up_rate=heat_up_rate, lang=lang)):
         try:
             program = Program(option, language='C++')
             score = program.score(test_samples)

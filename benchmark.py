@@ -9,6 +9,8 @@ import pandas as pd
 from github import ensure_repo, upload_file
 from pbe import program_by_example
 
+from fire import Fire
+
 DATA_PATH = os.environ['DATA_PATH']
 HEAT_UP_RATE = 0.2
 MAX_TRIES = 1000
@@ -25,28 +27,22 @@ def title2kebabcase(title):
 
 pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv', sep='\t', index_col=['Problem'])['Succ.'].rename(title2kebabcase)
 
-if __name__ == '__main__':
-    problems = psb2.PROBLEMS.copy()
-    random.shuffle(problems)
-    for problem in problems:
-        try:
-            config = {
-                'problem': problem, 
-                'baseline': pushgp_success_rates[problem],
-                'max_tries': MAX_TRIES, 
-                'heat_up_rate': HEAT_UP_RATE
-                }
-            run = wandb.init(project='nl2ml-codex', config=config)
+def run_benchmark(problem, max_tries=MAX_TRIES, heat_up_rate=HEAT_UP_RATE, lang='cpp'):
+    baseline = pushgp_success_rates[problem]
+    config = locals()
 
-            description = task_descriptions[problem]
-            train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 2000, format='competitive')
-            
-            for step, solution, score in program_by_example(problem, description, train_data, test_data, 
-                                                            max_options=MAX_TRIES, heat_up_rate=HEAT_UP_RATE):
-                wandb.log({'step': step, 'score': score})
-                solution.save('solutions/' + problem + '.cpp')
-                upload_file(solutions_repo, problem + '.cpp', f'solved {score} of {problem}')
-                
-            run.finish()
-        except KeyError:
-            pass
+    run = wandb.init(project='nl2ml-codex', config=config)
+
+    description = task_descriptions[problem]
+    train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 2000, format='competitive')
+    
+    for step, solution, score in program_by_example(problem, description, train_data, test_data, 
+                                                    max_options=MAX_TRIES, heat_up_rate=HEAT_UP_RATE):
+        wandb.log({'step': step, 'score': score})
+        solution.save('solutions/' + f'{problem}.{lang}')
+        upload_file(solutions_repo, f'{problem}.{lang}', f'solved {score} of {problem}')
+        
+    run.finish()
+
+if __name__ == '__main__':
+    Fire(run_benchmark)
