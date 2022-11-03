@@ -4,14 +4,16 @@ from string import Template
 import os
 from fire import Fire
 from tenacity import retry, retry_if_exception_type, wait_fixed
+from programlib import language_
 
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError), wait=wait_fixed(20))
-def nl2ml(nl_prompt, lang='cpp', temperature=0.0):
+def nl2ml(nl_prompt, language='C++', temperature=0.0):
     """
     Converts a natural language text to C++ programs.
     """
+    language = language_(language)
 
-    with open(f'template.{lang}') as f:
+    with open(language.source.format(name='template')) as f:
         template = Template(f.read())
 
     ml_prompt = template.substitute(prompt=nl_prompt)

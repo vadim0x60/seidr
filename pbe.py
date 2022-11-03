@@ -14,16 +14,16 @@ def build_prompt(task, task_description, examples):
         prompt += '\n'
     return prompt
 
-def program_by_example(task, task_description, train_samples, test_samples, 
+def program_by_example(task, task_description, examples, 
                        max_options=1000, heat_up_rate=0.2, lang='cpp'):
-    prompt = build_prompt(task, task_description, train_samples)
+    prompt = build_prompt(task, task_description, examples)
 
     best_score = -1
 
     for i, option in enumerate(nl2ml_options(prompt, heat_up_rate=heat_up_rate, lang=lang)):
         try:
             program = Program(option, language='C++')
-            score = program.score(test_samples)
+            score = program.score(examples)
         except AssertionError:
             score = 0
 

@@ -5,6 +5,7 @@ import os
 import wandb
 import random
 import pandas as pd
+from programlib import language_
 
 from github import ensure_repo, upload_file
 from pbe import program_by_example
@@ -27,7 +28,8 @@ def title2kebabcase(title):
 
 pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv', sep='\t', index_col=['Problem'])['Succ.'].rename(title2kebabcase)
 
-def run_benchmark(problem, max_tries=MAX_TRIES, heat_up_rate=HEAT_UP_RATE, lang='cpp'):
+def run_benchmark(problem, max_tries=MAX_TRIES, heat_up_rate=HEAT_UP_RATE, language='C++'):
+    language = language_(language)
     baseline = pushgp_success_rates[problem]
     config = locals()
 
@@ -39,8 +41,9 @@ def run_benchmark(problem, max_tries=MAX_TRIES, heat_up_rate=HEAT_UP_RATE, lang=
     for step, solution, score in program_by_example(problem, description, train_data, test_data, 
                                                     max_options=MAX_TRIES, heat_up_rate=HEAT_UP_RATE):
         wandb.log({'step': step, 'score': score})
-        solution.save('solutions/' + f'{problem}.{lang}')
-        upload_file(solutions_repo, f'{problem}.{lang}', f'solved {score} of {problem}')
+        filename = language.source.format(name=problem)
+        solution.save('solutions/' + filename)
+        upload_file(solutions_repo, filename, f'solved {score} of {problem}')
         
     run.finish()
 
