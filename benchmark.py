@@ -3,17 +3,16 @@ from more_itertools import chunked
 import psb2
 import os
 import wandb
-import random
+import itertools
 import pandas as pd
 from programlib import language_
 
 from github import ensure_repo, upload_file
-from pbe import program_by_example
+from develop import develop
 
 from fire import Fire
 
 DATA_PATH = os.environ['DATA_PATH']
-HEAT_UP_RATE = 0.2
 MAX_TRIES = 1000
 
 with open('psb2-meta/tasks.txt') as f:
@@ -28,7 +27,7 @@ def title2kebabcase(title):
 
 pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv', sep='\t', index_col=['Problem'])['Succ.'].rename(title2kebabcase)
 
-def run_benchmark(problem, max_tries=MAX_TRIES, heat_up_rate=HEAT_UP_RATE, language='C++'):
+def run_benchmark(problem, max_tries=MAX_TRIES, language='C++'):
     language = language_(language)
     baseline = pushgp_success_rates[problem]
     config = locals()
@@ -38,9 +37,12 @@ def run_benchmark(problem, max_tries=MAX_TRIES, heat_up_rate=HEAT_UP_RATE, langu
     description = task_descriptions[problem]
     train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 2000, format='competitive')
     
-    for step, solution, score in program_by_example(problem, description, train_data, test_data, 
-                                                    max_options=MAX_TRIES, heat_up_rate=HEAT_UP_RATE):
-        wandb.log({'step': step, 'score': score})
+    solutionogen = develop(problem, description, train_data, language=language,
+                           beam_size=100, branching_factor=100, log_f=wandb.log)
+
+    for solution in itertools.islice(solutionogen, max_tries):
+        # TODO: test on test data
+
         filename = language.source.format(name=problem)
         solution.save('solutions/' + filename)
         upload_file(solutions_repo, filename, f'solved {score} of {problem}')
