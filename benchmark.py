@@ -41,12 +41,15 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                            beam_size=beam_size, branching_factor=branching_factor, 
                            log_f=wandb.log)
 
-    for solution in itertools.islice(solutionogen, max_tries):
+    for idx, solution in enumerate(solutionogen):
         wandb.log({'test_score': solution.test(test_data)})
 
         filename = language.source.format(name=problem)
         solution.save('solutions/' + filename)
-        upload_file(solutions_repo, filename, f'solved {solution.score} of {problem}')
+        upload_file(solutions_repo, filename, f'solution {idx} of {problem}, score {solution.score}')
+
+        if idx >= max_tries:
+            break
         
     run.finish()
 
