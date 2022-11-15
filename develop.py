@@ -78,6 +78,8 @@ def develop(task, task_description, tests, language='C++',
     metric = lambda program: program.score
                                
     beam = draft(task, task_description, tests, language, batch_size=batch_size)
+    if beam_size:
+        beam = itertools.islice(beam, beam_size)
     solutionogen = beam_search(beam, update, metric, beam_size)
 
     return rolling_best(solutionogen, log_f)
