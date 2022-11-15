@@ -1,4 +1,6 @@
-from git import GitCommandError, Repo
+from git import InvalidGitRepositoryError, GitCommandError, NoSuchPathError
+from git import Repo
+import shutil
 
 def upload_file(repo, filename, message=None):
     if not message:
@@ -9,10 +11,17 @@ def upload_file(repo, filename, message=None):
     repo.remotes.origin.pull()
     repo.remotes.origin.push()
 
-def ensure_repo(remote, path):
+def ensure_repo(remote, path, branch=None):
     try:
-        repo = Repo.clone_from(remote, path)
-    except GitCommandError:
         repo = Repo(path)
-    assert repo.remotes.origin.url == remote
+
+        if branch:
+            repo.git.checkout(branch)
+    except (InvalidGitRepositoryError, GitCommandError, NoSuchPathError):
+        shutil.rmtree(path, ignore_errors=True)
+        repo = Repo.clone_from(remote, path)
+
+        if branch:
+            repo.git.checkout(branch)
+
     return repo

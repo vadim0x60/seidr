@@ -17,10 +17,6 @@ DATA_PATH = os.environ.get('DATA_PATH') or 'psb2'
 with open('psb2-meta/tasks.txt') as f:
     task_descriptions = {name.strip(): description.strip() for name, description in chunked(f.readlines(), 2)}
 
-solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], 'solutions')
-solutions_repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
-solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
-
 def title2kebabcase(title):
     return '-'.join(word.lower() for word in title.split(' '))
 
@@ -34,6 +30,9 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     run = wandb.init(project='nl2ml-codex', config=config)
     
     language = language_(language)
+    solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], 'solutions', branch=f'bf{branching_factor}')
+    solutions_repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
+    solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
 
     description = task_descriptions[problem]
     train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 2000, format='competitive')
@@ -47,7 +46,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
 
         filename = language.source.format(name=problem)
         solution.save('solutions/' + filename)
-        upload_file(solutions_repo, filename, f'solved {problem.score} of {problem}')
+        upload_file(solutions_repo, filename, f'solved {solution.score} of {problem}')
         
     run.finish()
 
