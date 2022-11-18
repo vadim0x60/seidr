@@ -5,24 +5,23 @@ import itertools
 from programlib import Program
 
 def rolling_best(candidates, log_f, max_score=1):
-    best_score = float('-inf')
+    best_program = None
     
-    for program in candidates:
-        best_program = None
-
-        if program.score > best_score:
-            best_score = program.score
+    for program, test_runs in candidates:
+        if not best_program or program.avg_score > best_program.avg_score:
             best_program = program
 
         log_f({
-            'score': program.score,
-            'best_score': best_score,
+            'best_avg_score': best_program.avg_score,
+            'best_pass_rate': best_program.pass_rate,
+            'avg_score': program.avg_score,
+            'pass_rate': program.pass_rate,
         })
 
-        if best_program:
+        if best_program == program:
             yield best_program
 
-            if best_program.score == max_score:
+            if best_program.avg_score == max_score:
                 break        
 
 def beam_search(beam, update, metric, beam_width=100):
@@ -43,25 +42,19 @@ def beam_search(beam, update, metric, beam_width=100):
 def draft(task, task_description, tests, language, batch_size=10):
     prompt = initial_prompt(task, task_description, tests)
     start = start_coding(prompt, language=language)
-    for code in explore_gpt(start, batch_size=batch_size):
-        program = Program(code, language=language)
-        program.test(tests)
-        yield program
+    return explore_gpt(start, batch_size=batch_size)
 
-def debug(program, tests, language, n, batch_size=10):
+def debug(code, test_runs, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
-    
-    assert program.score != 1
 
-    codogen = explore_gpt(program.read(), 
-                          instruction=debug_prompt(program),
-                          batch_size=batch_size,
-                          heat_per_batch=batch_size / n)
+    return explore_gpt(code, 
+                       instruction=debug_prompt(test_runs),
+                       batch_size=batch_size,
+                       heat_per_batch=batch_size / n)
 
-    for code in itertools.islice(codogen, n):
-        program = Program(code, language)
-        program.test(tests)
-        yield program
+def test(code, tests, language='C++'):
+    program = Program(code, language=language)
+    return program, program.test(tests)
 
 def develop(task, task_description, tests, language='C++', 
             beam_size=100, branching_factor=100, log_f=lambda x: x,
@@ -73,14 +66,23 @@ def develop(task, task_description, tests, language='C++',
     https://vadim.me/publications/unreasonable#search
     """
 
-    update = functools.partial(debug, tests=tests, language=language, 
-                               n=branching_factor, batch_size=batch_size)
-    metric = lambda program: program.score
-                               
-    beam = draft(task, task_description, tests, language, batch_size=batch_size)
+    codes = draft(task, task_description, tests, language, batch_size=batch_size)    
+    beam = (test(code, tests, language) for code in codes)
     if beam_size:
         beam = itertools.islice(beam, beam_size)
-    solutionogen = beam_search(beam, update, metric, beam_size)
+
+    def debug_and_test(candidate):
+        program, test_runs = candidate
+
+        for code in debug(program.read(), test_runs, branching_factor, batch_size=batch_size):
+            yield test(code, tests, language)
+
+    def success_metric(candidate):
+        program, test_runs = candidate
+
+        return program.avg_score
+
+    solutionogen = beam_search(beam, debug_and_test, success_metric, beam_size)
 
     return rolling_best(solutionogen, log_f)
 

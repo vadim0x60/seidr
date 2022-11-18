@@ -14,12 +14,12 @@ def initial_prompt(task, task_description, examples):
         prompt += '\n'
     return prompt
 
-def debug_prompt(program):
-    if program.stderr:
-        return f'Fix {program.stderr}'
-    else:
-        mistake = [run for run in program.test_runs if run.correctness == 0][0]
+def debug_prompt(test_runs):
+    mistake = [run for run in test_runs if run.correctness == 0][0]
 
+    if mistake.error_lines:
+        return f'Fix {mistake.error_lines}'
+    else:
         i = '\\n'.join(mistake.input_lines)
         o = '\\n'.join(mistake.expected_output_lines)
 
