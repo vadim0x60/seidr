@@ -27,6 +27,7 @@ def rolling_best(candidates, log_f, max_score=1):
 def beam_search(beam, update, metric, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
 
+    beam = list(beam)
     yield from beam
 
     while True:
