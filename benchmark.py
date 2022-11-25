@@ -5,6 +5,8 @@ import os
 import wandb
 import itertools
 import pandas as pd
+from pathlib import Path
+from uuid import uuid4
 from programlib import language_
 
 from github import ensure_repo, upload_file
@@ -30,7 +32,9 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     run = wandb.init(project='nl2ml-codex', config=config)
     
     language = language_(language)
-    solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], 'solutions', branch=f'bf{branching_factor}')
+    os.makedirs('solutions', exist_ok=True)
+    solutions_dir = Path('solutions') / str(uuid4())
+    solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], solutions_dir, branch=f'bf{branching_factor}')
     solutions_repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
     solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
 
