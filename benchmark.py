@@ -56,7 +56,11 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     run.finish()
 
 experiments = [
-    lambda: run_benchmark(problem, language, branching_factor, 1000, branching_factor)
+    {'problem': problem, 
+     'language': language, 
+     'branching_factor': branching_factor, 
+     'max_tries': 1000, 
+     'beam_size': branching_factor}
     for problem in task_descriptions.keys()
     for language in ('C++', 'Python')
     for branching_factor in (1, 10, 100, 1000)
@@ -65,6 +69,6 @@ experiments = [
 if __name__ == '__main__':
     task_id = os.environ.get('TASK_ID') or os.environ.get('SLURM_ARRAY_TASK_ID')
     if task_id is not None:
-        experiments[int(task_id)]()
+        run_benchmark(**experiments[int(task_id)])
     else:
         Fire(run_benchmark)
