@@ -51,7 +51,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                    'test_pass_rate': solution.pass_rate})
 
         filename = language.source.format(name=problem)
-        solution.save('solutions/' + filename)
+        solution.save(solutions_dir / filename)
         upload_file(solutions_repo, filename, f'solution {idx} of {problem}, {solution.pass_rate} of tests passed')
 
         if idx >= max_tries:
