@@ -42,8 +42,13 @@ def beam_search(beam, update, metric, beam_width=100):
                 yield child
                 new_beam.append(child)
 
+def distribute_heat(heat, n, batch_size):
+    batch_count = n // batch_size + 1
+    heat_per_batch = heat / batch_count
+    return heat_per_batch
+
 def draft(task, task_description, tests, language, batch_size=10, limit_n=None):
-    heat_per_batch = 0.2 if limit_n is None else batch_size / limit_n
+    heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
     prompt = initial_prompt(task, task_description, tests)
     start = start_coding(prompt, language=language)
 
@@ -61,7 +66,7 @@ def debug(code, test_runs, n, batch_size=10):
     return explore_gpt(code, 
                        instruction=debug_prompt(test_runs),
                        batch_size=batch_size,
-                       heat_per_batch=batch_size / n)
+                       heat_per_batch=distribute_heat(1, n, batch_size))
 
 def test(code, tests, language='C++'):
     program = Program(code, language=language)
