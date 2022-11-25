@@ -40,10 +40,18 @@ def beam_search(beam, update, metric, beam_width=100):
 
         beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
 
-def draft(task, task_description, tests, language, batch_size=10):
+def draft(task, task_description, tests, language, batch_size=10, limit_n=None):
+    heat_per_batch = 0.2 if limit_n is None else batch_size / limit_n
     prompt = initial_prompt(task, task_description, tests)
     start = start_coding(prompt, language=language)
-    return explore_gpt(start, batch_size=batch_size)
+
+    codes = explore_gpt(start, batch_size=batch_size, 
+                               heat_per_batch=heat_per_batch)
+
+    if limit_n:
+        codes = itertools.islice(codes, limit_n)
+
+    return codes
 
 def debug(code, test_runs, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
@@ -67,10 +75,9 @@ def develop(task, task_description, tests, language='C++',
     https://vadim.me/publications/unreasonable#search
     """
 
-    codes = draft(task, task_description, tests, language, batch_size=batch_size)    
+    codes = draft(task, task_description, tests, language, 
+                  batch_size=batch_size, limit_n=beam_size)    
     beam = (test(code, tests, language) for code in codes)
-    if beam_size:
-        beam = itertools.islice(beam, beam_size)
 
     def debug_and_test(candidate):
         program, test_runs = candidate
