@@ -27,18 +27,20 @@ def rolling_best(candidates, log_f, max_score=1):
 def beam_search(beam, update, metric, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
 
-    beam = list(beam)
-    yield from beam
+    new_beam = []
+
+    for code in beam:
+        yield code
+        new_beam.append(code)
 
     while True:
+        beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
         new_beam = []
 
         for parent in beam:
             for child in update(parent):
                 yield child
                 new_beam.append(child)
-
-        beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
 
 def draft(task, task_description, tests, language, batch_size=10, limit_n=None):
     heat_per_batch = 0.2 if limit_n is None else batch_size / limit_n
