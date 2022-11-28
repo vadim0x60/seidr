@@ -14,7 +14,7 @@ def initial_prompt(task, task_description, examples):
         prompt += '\n'
     return prompt
 
-def debug_prompt(test_runs):
+def debug_prompt(test_runs, debug_prompt_text):
     mistake = [run for run in test_runs if run.correctness == 0][0]
 
     if mistake.error_lines:
@@ -23,12 +23,12 @@ def debug_prompt(test_runs):
         i = '\\n'.join(mistake.input_lines)
         o = '\\n'.join(mistake.expected_output_lines)
 
-        return f'Make sure that {i} -> {o}'
+        return debug_prompt_text.format(i=i, o=o)
 
 def start_coding(prompt, language='C++', temperature=0.0):
     language = language_(language)
 
-    with open(language.source.format(name='template')) as f:
+    with open('code-templates/' + language.source.format(name='template')) as f:
         template = Template(f.read())
 
     return template.substitute(prompt=prompt)

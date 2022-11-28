@@ -2,6 +2,7 @@ from git import InvalidGitRepositoryError, GitCommandError, NoSuchPathError
 from git import Repo
 import shutil
 
+
 def upload_file(repo, filename, message=None):
     if not message:
         message = f'added {filename}'
@@ -10,6 +11,7 @@ def upload_file(repo, filename, message=None):
     repo.index.commit(message)
     repo.remotes.origin.pull()
     repo.remotes.origin.push()
+
 
 def ensure_repo(remote, path, branch=None):
     try:

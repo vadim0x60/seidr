@@ -1,12 +1,15 @@
+import itertools
+
+import openai
+from programlib import Program
+
 from gpt import explore_gpt
 from prompt import initial_prompt, debug_prompt, start_coding
-import functools
-import itertools
-from programlib import Program
+
 
 def rolling_best(candidates, log_f, max_score=1):
     best_program = None
-    
+
     for program, test_runs in candidates:
         if not best_program or program.avg_score > best_program.avg_score:
             best_program = program
@@ -22,7 +25,8 @@ def rolling_best(candidates, log_f, max_score=1):
             yield best_program
 
             if best_program.avg_score == max_score:
-                break        
+                break
+
 
 def beam_search(beam, update, metric, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
@@ -40,24 +44,29 @@ def beam_search(beam, update, metric, beam_width=100):
 
         beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
 
+
 def draft(task, task_description, tests, language, batch_size=10):
     prompt = initial_prompt(task, task_description, tests)
     start = start_coding(prompt, language=language)
     return explore_gpt(start, batch_size=batch_size)
 
-def debug(code, test_runs, n, batch_size=10):
+
+def debug(code, debug_prompt_text, test_runs, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
 
-    return explore_gpt(code, 
-                       instruction=debug_prompt(test_runs),
+    return explore_gpt(code,
+                       instruction=debug_prompt(test_runs, debug_prompt_text),
                        batch_size=batch_size,
                        heat_per_batch=batch_size / n)
+
 
 def test(code, tests, language='C++'):
     program = Program(code, language=language)
     return program, program.test(tests)
 
-def develop(task, task_description, tests, language='C++', 
+
+def develop(task, task_description, tests,
+            debug_prompt_text='Make sure {i} -> {o}', language='C++',
             beam_size=100, branching_factor=100, log_f=lambda x: x,
             batch_size=10):
     """
@@ -67,7 +76,7 @@ def develop(task, task_description, tests, language='C++',
     https://vadim.me/publications/unreasonable#search
     """
 
-    codes = draft(task, task_description, tests, language, batch_size=batch_size)    
+    codes = draft(task, task_description, tests, language, batch_size=batch_size)
     beam = (test(code, tests, language) for code in codes)
     if beam_size:
         beam = itertools.islice(beam, beam_size)
@@ -75,7 +84,7 @@ def develop(task, task_description, tests, language='C++',
     def debug_and_test(candidate):
         program, test_runs = candidate
 
-        for code in debug(program.read(), test_runs, branching_factor, batch_size=batch_size):
+        for code in debug(program.read(), debug_prompt_text, test_runs, branching_factor, batch_size=batch_size):
             yield test(code, tests, language)
 
     def success_metric(candidate):
@@ -87,7 +96,12 @@ def develop(task, task_description, tests, language='C++',
 
     return rolling_best(solutionogen, log_f)
 
+
 if __name__ == '__main__':
+    openai.organization = "org-W4y3V2nef7qsGvILgzrMjzNW"
     tests = [([], ['Hello World'])]
-    *_, perfect_solution = develop('Hello World', 'Write a program that prints "Hello World"', tests, log_f=print, language='C++')
+    language = "C++"
+    *_, perfect_solution = develop('Hello World', f'Write a program that prints "Hello World"',
+                                   tests, log_f=print,
+                                   language=language, beam_size=2, branching_factor=4, batch_size=8)
     print(perfect_solution.read())

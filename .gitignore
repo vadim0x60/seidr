@@ -3,3 +3,23 @@ __pycache__
 wandb
 solutions
 .config
+
+# Env
+venv/
+
+# Idea
+.idea/
+
+# Mac
+*.DS_Store
+
+
+# Data
+data/
+
+# Test notebooks
+notebooks/
+.ipynb_checkpoints/
+
+# Notes
+notes/
