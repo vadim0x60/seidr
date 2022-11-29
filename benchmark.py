@@ -1,13 +1,15 @@
 import logging
 import os
-
-import pandas as pd
 import psb2
+import wandb
+import pandas as pd
+
 from fire import Fire
 from more_itertools import chunked
+from pathlib import Path
+from uuid import uuid4
 from programlib import language_
 
-import wandb
 from develop import develop
 from github import ensure_repo, upload_file
 
@@ -39,9 +41,11 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     run = wandb.init(project='nl2ml-codex', config=config)
 
     language = language_(language)
-    # solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], 'solutions', branch=f'bf{branching_factor}')
-    # solutions_repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
-    # solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
+    os.makedirs('solutions', exist_ok=True)
+    solutions_dir = Path('solutions') / str(uuid4())
+    solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], solutions_dir, branch=f'bf{branching_factor}')
+    solutions_repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
+    solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
 
     description = task_descriptions[problem]
     debug_prompt_text = debug_templates[debug_prompt_id]
@@ -59,7 +63,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
 
         filename = language.source.format(name=problem)
         solution.save('solutions/' + filename)
-        # upload_file(solutions_repo, filename, f'solution {idx} of {problem}, {solution.pass_rate} of tests passed')
+        upload_file(solutions_repo, filename, f'solution {idx} of {problem}, {solution.pass_rate} of tests passed')
 
         if idx >= max_tries:
             break
@@ -68,7 +72,11 @@ def run_benchmark(problem, language='C++', branching_factor=100,
 
 
 experiments = [
-    lambda: run_benchmark(problem, language, branching_factor, 1000, branching_factor)
+    {'problem': problem, 
+     'language': language, 
+     'branching_factor': branching_factor, 
+     'max_tries': 1000, 
+     'beam_size': branching_factor}
     for problem in task_descriptions.keys()
     for language in ('C++', 'Python')
     for branching_factor in (1, 10, 100, 1000)
@@ -82,6 +90,6 @@ if __name__ == '__main__':
     task_id = os.environ.get('TASK_ID') or os.environ.get('SLURM_ARRAY_TASK_ID')
     logger.info('Start')
     if task_id is not None:
-        experiments[int(task_id)]()
+        run_benchmark(**experiments[int(task_id)])
     else:
         Fire(run_benchmark)

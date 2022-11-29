@@ -1,6 +1,4 @@
 import itertools
-
-import openai
 from programlib import Program
 
 from gpt import explore_gpt
@@ -31,10 +29,14 @@ def rolling_best(candidates, log_f, max_score=1):
 def beam_search(beam, update, metric, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
 
-    beam = list(beam)
-    yield from beam
+    new_beam = []
+
+    for code in beam:
+        yield code
+        new_beam.append(code)
 
     while True:
+        beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
         new_beam = []
 
         for parent in beam:
@@ -42,13 +44,23 @@ def beam_search(beam, update, metric, beam_width=100):
                 yield child
                 new_beam.append(child)
 
-        beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
+def distribute_heat(heat, n, batch_size):
+    batch_count = n // batch_size + 1
+    heat_per_batch = heat / batch_count
+    return heat_per_batch
 
 
-def draft(task, task_description, tests, language, batch_size=10):
+def draft(task, task_description, tests, language, batch_size=10, limit_n=None):
+    heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
     prompt = initial_prompt(task, task_description, tests)
     start = start_coding(prompt, language=language)
-    return explore_gpt(start, batch_size=batch_size)
+
+    codes = explore_gpt(start, batch_size=batch_size, heat_per_batch=heat_per_batch)
+
+    if limit_n:
+        codes = itertools.islice(codes, limit_n)
+
+    return codes
 
 
 def debug(code, debug_prompt_text, test_runs, n, batch_size=10):
@@ -57,7 +69,7 @@ def debug(code, debug_prompt_text, test_runs, n, batch_size=10):
     return explore_gpt(code,
                        instruction=debug_prompt(test_runs, debug_prompt_text),
                        batch_size=batch_size,
-                       heat_per_batch=batch_size / n)
+                       heat_per_batch=distribute_heat(1, n, batch_size))
 
 
 def test(code, tests, language='C++'):
@@ -76,10 +88,9 @@ def develop(task, task_description, tests,
     https://vadim.me/publications/unreasonable#search
     """
 
-    codes = draft(task, task_description, tests, language, batch_size=batch_size)
+    codes = draft(task, task_description, tests, language,
+                  batch_size=batch_size, limit_n=beam_size)    
     beam = (test(code, tests, language) for code in codes)
-    if beam_size:
-        beam = itertools.islice(beam, beam_size)
 
     def debug_and_test(candidate):
         program, test_runs = candidate
@@ -98,7 +109,6 @@ def develop(task, task_description, tests,
 
 
 if __name__ == '__main__':
-    openai.organization = "org-W4y3V2nef7qsGvILgzrMjzNW"
     tests = [([], ['Hello World'])]
     language = "C++"
     *_, perfect_solution = develop('Hello World', f'Write a program that prints "Hello World"',
