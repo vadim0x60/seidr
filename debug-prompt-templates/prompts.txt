@@ -1,11 +1,23 @@
 0	Make sure that {i} -> {o}
-1	Ensure {i} -> {o}
-2	From input {i} get output {o}
-3	Input: {i}, output: {o}
-4	Test pair: ({i}, {o})
-5	Modify code to get {o} from {i}
-6	Code must correspond instructions in docstring and {i} must yield {o}
-7	Code should correspond instructions in docstring and {i} should yield {o}
-8	Program takes {i} as input string and returns {o} as output string
-9	Program takes {i} as input and returns {o} as output
-10	Program takes {i} and returns {o}
+1	Make sure that input {i} yields output {o}
+2	Make sure that for input {i} we get output {o}
+3	Make sure that we get {o} as output for input {i}
+4	Make sure the code retuns {o} for input {i}
+5	Ensure {i} -> {o}
+6	Ensure that for input {i} we get output {o}
+7	Ensure that input {i} yeilds output {o}
+8	Ensure that we get output {o} for input {i}
+9	Ensure the code retun {o} for input {i}
+10	Input {i} must yield output {o}
+11	Return {o} for input {i}
+12	From input {i} get output {o}
+13	Input: {i}, output: {o}
+14	Test pair: ({i}, {o})
+15	Modify code to get {o} from {i}
+16	Code must correspond instructions in comments and {i} must yield {o}
+17	Code should correspond instructions in comments and {i} should yield {o}
+18	Program takes {i} as input string and returns {o} as output string
+19	Program takes {i} as input and returns {o} as output
+20	Program takes {i} and returns {o}
+21	See comments in code and return {o} for input {i}
+22	See comments in code and for input {i} get output {o}

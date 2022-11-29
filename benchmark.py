@@ -43,7 +43,11 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     language = language_(language)
     os.makedirs('solutions', exist_ok=True)
     solutions_dir = Path('solutions') / str(uuid4())
-    solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], solutions_dir, branch=f'bf{branching_factor}')
+
+    os.makedirs(solutions_dir, exist_ok=True)
+
+    solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], solutions_dir,
+                                 branch=f'bf{branching_factor}_promptid{debug_prompt_id}')
     solutions_repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
     solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
 
@@ -85,7 +89,7 @@ experiments = [
 if __name__ == '__main__':
     # Setup logging
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
+                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO, filename='./run.log')
 
     task_id = os.environ.get('TASK_ID') or os.environ.get('SLURM_ARRAY_TASK_ID')
     logger.info('Start')

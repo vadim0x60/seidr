@@ -24,7 +24,6 @@ def query_gpt(code, instruction=None, n=1, temperature=1.0):
             temperature=temperature
         )
         result = [choice["text"] for choice in response["choices"] if "text" in choice.keys()]
-        # TODO: make sure that temperature rises if Codex does not return 'text' for any pair (code, instruction)
         return result if len(result) > 0 else [code]
     else:
         response = openai.Completion.create(
@@ -45,12 +44,13 @@ def explore_gpt(code, instruction=None, batch_size=1, heat_per_batch=0.2):
     # (for OpenAI, which is why they don't offer it)
 
     # We fix moderate temperature to get sufficiently varied code snippets from the model
-    temperature = 0.4
+    temperature = 0.0
 
     while True:
         # We intentionally avoid temperature=0 
         # That would lead to a batch of identical code snippets
-        # temperature += heat_per_batch
+        # Update temperature but keep it 1 at max
+        temperature = temperature + heat_per_batch if 1.0 - temperature >=heat_per_batch else temperature
         yield from query_gpt(code, instruction,
                              n=batch_size, temperature=temperature)
 
