@@ -26,7 +26,7 @@ def rolling_best(candidates, log_f, max_score=1):
                 break
 
 
-def beam_search(beam, update, metric, beam_width=100):
+def beam_search(beam, update, metric, beam_width=100, beam_depth=1000):
     """Generic evolutionary algorithm for improving anything"""
 
     new_beam = []
@@ -35,14 +35,17 @@ def beam_search(beam, update, metric, beam_width=100):
         yield code
         new_beam.append(code)
 
-    while True:
+    # while True:
+    idx = 0
+    while idx < beam_depth:
         beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
         new_beam = []
-
         for parent in beam:
+            # update(parent) returns branching_factor programs - do we go through them all?
             for child in update(parent):
                 yield child
                 new_beam.append(child)
+        idx += 1
 
 def distribute_heat(heat, n, batch_size):
     batch_count = n // batch_size + 1
@@ -50,9 +53,9 @@ def distribute_heat(heat, n, batch_size):
     return heat_per_batch
 
 
-def draft(task, task_description, tests, language, batch_size=10, limit_n=None):
+def draft(task, task_description, tests, language, n_pairs_in_prompt, batch_size=10, limit_n=None):
     heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
-    prompt = initial_prompt(task, task_description, tests)
+    prompt = initial_prompt(task, task_description, tests, n_pairs_in_prompt)
     start = start_coding(prompt, language=language)
 
     codes = explore_gpt(start, batch_size=batch_size, heat_per_batch=heat_per_batch)
@@ -77,9 +80,9 @@ def test(code, tests, language='C++'):
     return program, program.test(tests)
 
 
-def develop(task, task_description, tests,
+def develop(task, task_description, tests, n_pairs_in_prompt, beam_depth,
             debug_prompt_text='Make sure {i} -> {o}', language='C++',
-            beam_size=100, branching_factor=100, log_f=lambda x: x,
+            beam_width=100, branching_factor=100, log_f=lambda x: x,
             batch_size=10):
     """
     Write a program in language that solves task and passes tests.
@@ -89,7 +92,8 @@ def develop(task, task_description, tests,
     """
 
     codes = draft(task, task_description, tests, language,
-                  batch_size=batch_size, limit_n=beam_size)    
+                  n_pairs_in_prompt=n_pairs_in_prompt,
+                  batch_size=batch_size, limit_n=beam_width)
     beam = (test(code, tests, language) for code in codes)
 
     def debug_and_test(candidate):
@@ -103,7 +107,7 @@ def develop(task, task_description, tests,
 
         return program.avg_score
 
-    solutionogen = beam_search(beam, debug_and_test, success_metric, beam_size)
+    solutionogen = beam_search(beam, debug_and_test, success_metric, beam_width, beam_depth)
 
     return rolling_best(solutionogen, log_f)
 
@@ -113,5 +117,5 @@ if __name__ == '__main__':
     language = "C++"
     *_, perfect_solution = develop('Hello World', f'Write a program that prints "Hello World"',
                                    tests, log_f=print,
-                                   language=language, beam_size=2, branching_factor=4, batch_size=8)
+                                   language=language, beam_width=2, branching_factor=4, batch_size=8)
     print(perfect_solution.read())

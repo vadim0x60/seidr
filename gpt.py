@@ -50,7 +50,8 @@ def explore_gpt(code, instruction=None, batch_size=1, heat_per_batch=0.2):
         # We intentionally avoid temperature=0 
         # That would lead to a batch of identical code snippets
         # Update temperature but keep it 1 at max
-        temperature = temperature + heat_per_batch if 1.0 - temperature >=heat_per_batch else temperature
+        temperature = temperature + heat_per_batch \
+            if 1.0 - temperature >= heat_per_batch else temperature
         yield from query_gpt(code, instruction,
                              n=batch_size, temperature=temperature)
 

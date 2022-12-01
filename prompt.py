@@ -1,12 +1,12 @@
 from string import Template
 from programlib import language_
 
-def initial_prompt(task, task_description, examples):
+def initial_prompt(task, task_description, examples, n_pairs_in_prompt):
     prompt = task
     prompt += '\n\n'
     prompt += task_description
     prompt += '\n\nFor example: \n'
-    for sample_inputs, sample_outputs in examples:
+    for sample_inputs, sample_outputs in examples[:n_pairs_in_prompt]:
         for sample_input in sample_inputs:
             prompt += '> ' + sample_input + '\n'
         for sample_output in sample_outputs:
