@@ -47,9 +47,9 @@ def distribute_heat(heat, n, batch_size):
     heat_per_batch = heat / batch_count
     return heat_per_batch
 
-def draft(task, task_description, tests, language, batch_size=10, limit_n=None):
+def draft(task_description, examples, language, batch_size=10, limit_n=None):
     heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
-    prompt = initial_prompt(task, task_description, tests)
+    prompt = initial_prompt(task_description, examples)
     start = start_coding(prompt, language=language)
 
     codes = explore_gpt(start, batch_size=batch_size, 
@@ -72,22 +72,23 @@ def test(code, tests, language='C++'):
     program = Program(code, language=language)
     return program, program.test(tests)
 
-def develop(task, task_description, tests, language='C++', 
+def develop(task_description, examples=[], tests=[], language='C++', 
             beam_size=100, branching_factor=100, log_f=lambda x: x,
-            batch_size=10):
+            batch_size=10, max_programs=None):
     """
     Write a program in language that solves task and passes tests.
     Solve debug-rewrite trade-off with beam search of given beam size
 
-    tests parameter is a sequence of (inputs, outputs) pairs
+    examples is a sequence of (inputs, outputs) pairs
     where inputs and outputs are sequences of strings (lines of code)
+    likewise for tests
 
     Returns a generator of programs where each program passes
     more tests than the previous one. The last program in the generator
     passes all tests.
     """
 
-    codes = draft(task, task_description, tests, language, 
+    codes = draft(task_description, examples, language, 
                   batch_size=batch_size, limit_n=beam_size)    
     beam = (test(code, tests, language) for code in codes)
 
@@ -103,10 +104,11 @@ def develop(task, task_description, tests, language='C++',
         return program.avg_score
 
     solutionogen = beam_search(beam, debug_and_test, success_metric, beam_size)
-
+    if max_programs:
+        solutionogen = itertools.islice(solutionogen, max_programs)
+    
     return rolling_best(solutionogen, log_f)
 
 if __name__ == '__main__':
-    tests = [([], ['Hello World'])]
-    *_, perfect_solution = develop('Hello World', 'Write a program that prints "Hello World"', tests, log_f=print, language='C++')
-    print(perfect_solution.read())
+    from fire import Fire
+    Fire(develop)

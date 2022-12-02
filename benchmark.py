@@ -25,7 +25,8 @@ def title2kebabcase(title):
 pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv', sep='\t', index_col=['Problem'])['Succ.'].rename(title2kebabcase)
 
 def run_benchmark(problem, language='C++', branching_factor=100, 
-                  max_tries=1000, beam_size=100):
+                  max_tries=1000, beam_size=100,
+                  prompt_examples=5, valid_examples=100, test_examples=2000):
     baseline = pushgp_success_rates[problem]
     
     config = locals()
@@ -39,10 +40,13 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
 
     description = task_descriptions[problem]
-    train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 2000, format='competitive')
+    train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, max(valid_examples, prompt_examples), test_examples, format='competitive')
+    prompt_data = train_data[:prompt_examples]
+    valid_data = train_data[:valid_examples]
     
-    solutionogen = develop(problem, description, train_data, language=language,
-                           beam_size=beam_size, branching_factor=branching_factor, 
+    solutionogen = develop(description, prompt_data, valid_data, 
+                           language=language, beam_size=beam_size, 
+                           branching_factor=branching_factor, 
                            log_f=wandb.log)
 
     for idx, solution in enumerate(solutionogen):
