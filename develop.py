@@ -79,7 +79,12 @@ def develop(task, task_description, tests, language='C++',
     Write a program in language that solves task and passes tests.
     Solve debug-rewrite trade-off with beam search of given beam size
 
-    https://vadim.me/publications/unreasonable#search
+    tests parameter is a sequence of (inputs, outputs) pairs
+    where inputs and outputs are sequences of strings (lines of code)
+
+    Returns a generator of programs where each program passes
+    more tests than the previous one. The last program in the generator
+    passes all tests.
     """
 
     codes = draft(task, task_description, tests, language, 
