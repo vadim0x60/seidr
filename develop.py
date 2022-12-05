@@ -4,25 +4,14 @@ import functools
 import itertools
 from programlib import Program
 
-def rolling_best(candidates, log_f, max_score=1):
-    best_program = None
-    
-    for program, test_runs in candidates:
-        if not best_program or program.avg_score > best_program.avg_score:
-            best_program = program
+def rolling_best(objects, max_score=1, metric = lambda x: x):
+    max_score = None
 
-        log_f({
-            'best_avg_score': best_program.avg_score,
-            'best_pass_rate': best_program.pass_rate,
-            'avg_score': program.avg_score,
-            'pass_rate': program.pass_rate,
-        })
-
-        if best_program == program:
-            yield best_program
-
-            if best_program.avg_score == max_score:
-                break        
+    for object in objects:
+        score = metric(object)
+        if max_score is None or score > max_score:
+            max_score = score
+            yield object
 
 def beam_search(beam, update, metric, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
@@ -72,8 +61,9 @@ def test(code, tests, language='C++'):
     program = Program(code, language=language)
     return program, program.test(tests)
 
-def develop(task_description, examples=[], tests=[], language='C++', 
-            beam_size=100, branching_factor=100, log_f=lambda x: x,
+def develop(task_description, examples=tuple(), tests=tuple(), language='C++', 
+            beam_size=100, branching_factor=100, 
+            log_metrics=print, log_program=print,
             batch_size=10, max_programs=None):
     """
     Write a program in language that solves task and passes tests.
@@ -87,7 +77,6 @@ def develop(task_description, examples=[], tests=[], language='C++',
     more tests than the previous one. The last program in the generator
     passes all tests.
     """
-
     codes = draft(task_description, examples, language, 
                   batch_size=batch_size, limit_n=beam_size)    
     beam = (test(code, tests, language) for code in codes)
@@ -98,16 +87,40 @@ def develop(task_description, examples=[], tests=[], language='C++',
         for code in debug(program.read(), test_runs, branching_factor, batch_size=batch_size):
             yield test(code, tests, language)
 
-    def success_metric(candidate):
-        program, test_runs = candidate
+    def metric_logger(prefix):
+        def log(program):
+            log_metrics({
+                prefix + 'avg_score': program.avg_score,
+                prefix + 'pass_rate': program.pass_rate,
+            })
 
-        return program.avg_score
+            return program
+        return log
 
-    solutionogen = beam_search(beam, debug_and_test, success_metric, beam_size)
-    if max_programs:
-        solutionogen = itertools.islice(solutionogen, max_programs)
+    def limit_n(programs):
+        for idx, program in enumerate(programs):
+            log_metrics({
+                'idx': idx
+            })
+
+            yield program
+
+            if max_programs and idx >= max_programs:
+                break
+
+    solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_size)
+    solutionogen = (program for program, test_runs in solutionogen)
+    solutionogen = limit_n(solutionogen)
+    solutionogen = map(metric_logger(''), solutionogen)
+    solutionogen = rolling_best(solutionogen, max_score=1, metric=lambda prog: prog.avg_score)
     
-    return rolling_best(solutionogen, log_f)
+    solution = None
+
+    for solution in solutionogen:
+        metric_logger('best_')(solution)
+        log_program(solution)
+
+    return solution
 
 if __name__ == '__main__':
     from fire import Fire

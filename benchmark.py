@@ -43,24 +43,21 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, max(valid_examples, prompt_examples), test_examples, format='competitive')
     prompt_data = train_data[:prompt_examples]
     valid_data = train_data[:valid_examples]
-    
-    solutionogen = develop(description, prompt_data, valid_data, 
-                           language=language, beam_size=beam_size, 
-                           branching_factor=branching_factor, 
-                           log_f=wandb.log)
 
-    for idx, solution in enumerate(solutionogen):
-        solution.test(test_data)
-        wandb.log({'test_avg_score': solution.avg_score,
-                   'test_pass_rate': solution.pass_rate})
-
+    def log_program(solution):
         filename = language.source.format(name=problem)
         solution.save(solutions_dir / filename)
         upload_file(solutions_repo, filename, f'solution {idx} of {problem}, {solution.pass_rate} of tests passed')
+    
+    solution = develop(description, prompt_data, valid_data, 
+                       language=language, beam_size=beam_size, 
+                       branching_factor=branching_factor, 
+                       log_metrics=wandb.log, log_program=log_program)
 
-        if idx >= max_tries:
-            break
-        
+    solution.test(test_data)
+    wandb.log({'test_avg_score': solution.avg_score,
+               'test_pass_rate': solution.pass_rate})
+
     run.finish()
 
 experiments = [
