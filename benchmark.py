@@ -9,7 +9,7 @@ from pathlib import Path
 from uuid import uuid4
 from programlib import language_
 
-from github import ensure_repo, upload_file
+from github import config_repo, upload_file
 from develop import develop
 
 from fire import Fire
@@ -17,12 +17,15 @@ from fire import Fire
 DATA_PATH = os.environ.get('DATA_PATH') or 'psb2'
 
 with open('psb2-meta/tasks.txt') as f:
-    task_descriptions = {name.strip(): description.strip() for name, description in chunked(f.readlines(), 2)}
+    task_descriptions = {name.strip(): description.strip() 
+                         for name, description in chunked(f.readlines(), 2)}
 
 def title2kebabcase(title):
     return '-'.join(word.lower() for word in title.split(' '))
 
-pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv', sep='\t', index_col=['Problem'])['Succ.'].rename(title2kebabcase)
+pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv', 
+                                   sep='\t', index_col=['Problem'])
+pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
 def run_benchmark(problem, language='C++', branching_factor=100, 
                   max_tries=1000, beam_size=100,
@@ -35,19 +38,24 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     language = language_(language)
     os.makedirs('solutions', exist_ok=True)
     solutions_dir = Path('solutions') / str(uuid4())
-    solutions_repo = ensure_repo(os.environ['GITHUB_REMOTE'], solutions_dir, branch=f'bf{branching_factor}')
-    solutions_repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
-    solutions_repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
+    # if git env variables are set, this will set up a git repo
+    solutions_repo = config_repo(solutions_dir, branch=f'bf{branching_factor}')
+    # if git env variables are not set, this will just create the directory
+    os.makedirs(solutions_dir, exist_ok=True)
 
     description = task_descriptions[problem]
-    train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, max(valid_examples, prompt_examples), test_examples, format='competitive')
+    train_data, test_data = psb2.fetch_examples(
+        DATA_PATH, problem, max(valid_examples, prompt_examples), 
+        test_examples, format='competitive')
     prompt_data = train_data[:prompt_examples]
     valid_data = train_data[:valid_examples]
 
     def log_program(solution):
         filename = language.source.format(name=problem)
         solution.save(solutions_dir / filename)
-        upload_file(solutions_repo, filename, f'solution {idx} of {problem}, {solution.pass_rate} of tests passed')
+        if solutions_repo:
+            cmsg = f'solution {idx} of {problem}, {solution.pass_rate} of tests passed'
+            upload_file(solutions_repo, filename, cmsg)
     
     solution = develop(description, prompt_data, valid_data, 
                        language=language, beam_size=beam_size, 
