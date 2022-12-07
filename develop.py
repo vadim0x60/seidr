@@ -5,13 +5,16 @@ import itertools
 from programlib import Program
 
 def rolling_best(objects, max_score=1, metric = lambda x: x):
-    max_score = None
+    best_score = None
 
     for object in objects:
         score = metric(object)
-        if max_score is None or score > max_score:
-            max_score = score
+        if best_score is None or score > best_score:
+            best_score = score
             yield object
+
+        if best_score >= max_score:
+            break
 
 def beam_search(beam, update, metric, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
