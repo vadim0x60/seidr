@@ -49,4 +49,7 @@ def explore_gpt(code, instruction=None, batch_size=1, heat_per_batch=0.2):
                              n=batch_size, temperature=temperature)
 
 if __name__ == '__main__':
-    Fire(explore_gpt)
+    import itertools
+
+    for code in itertools.islice(explore_gpt(input()), 10):
+        print(code)

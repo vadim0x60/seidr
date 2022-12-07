@@ -65,8 +65,8 @@ def test(code, tests, language='C++'):
     return program, program.test(tests)
 
 def develop(task_description, examples=tuple(), tests=tuple(), language='C++', 
-            beam_size=100, branching_factor=100, 
-            log_metrics=print, log_program=print,
+            beam_size=100, branching_factor=10, 
+            log_metrics=print, log_program=lambda p: print(p.read()),
             batch_size=10, max_programs=None):
     """
     Write a program in language that solves task and passes tests.
@@ -75,6 +75,9 @@ def develop(task_description, examples=tuple(), tests=tuple(), language='C++',
     examples is a sequence of (inputs, outputs) pairs
     where inputs and outputs are sequences of strings (lines of code)
     likewise for tests
+
+    examples are used in the prompt for the language model,
+    while tests are used to select the best solution
 
     Returns a generator of programs where each program passes
     more tests than the previous one. The last program in the generator
@@ -126,5 +129,10 @@ def develop(task_description, examples=tuple(), tests=tuple(), language='C++',
     return solution
 
 if __name__ == '__main__':
-    from fire import Fire
-    Fire(develop)
+    task = 'A program that outputs "Hello World"'
+    examples = [
+        ([''], ['Hello World'])
+    ]
+
+    # Use the same IO examples for prompt and tests
+    develop(task, examples, examples)
