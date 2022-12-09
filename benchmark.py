@@ -28,7 +28,7 @@ pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
 def run_benchmark(problem, language='C++', branching_factor=100, 
-                  max_tries=1000, beam_size=100,
+                  max_programs=1000, beam_size=100,
                   prompt_examples=5, valid_examples=100, test_examples=2000):
     baseline = pushgp_success_rates[problem]
     
@@ -61,6 +61,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     solution = develop(description, prompt_data, valid_data, 
                        language=language, beam_size=beam_size, 
                        branching_factor=branching_factor, 
+                       max_programs=max_programs,
                        log_metrics=wandb.log, log_program=log_program)
 
     solution.test(test_data)
@@ -73,7 +74,7 @@ experiments = [
     {'problem': problem, 
      'language': language, 
      'branching_factor': branching_factor, 
-     'max_tries': 1000, 
+     'max_programs': 1000, 
      'beam_size': branching_factor}
     for problem in task_descriptions.keys()
     for language in ('C++', 'Python')
