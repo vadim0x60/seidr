@@ -16,26 +16,29 @@ def query_gpt(code, instruction=None, n=1, temperature=1.0):
     otherwise it's edited according to the instruction.
     """
 
-    if instruction:
-        response = openai.Edit.create(
-            engine="code-davinci-edit-001",
-            input=code,
-            n=n,
-            instruction=instruction,
-            temperature=temperature
-        ) 
+    try:
+        if instruction:
+            response = openai.Edit.create(
+                engine="code-davinci-edit-001",
+                input=code,
+                n=n,
+                instruction=instruction,
+                temperature=temperature
+            ) 
 
-        return [choice['text'] for choice in response["choices"]]
-    else:
-        response = openai.Completion.create(
-            engine="code-davinci-001",
-            prompt=code,
-            n=n,
-            temperature=temperature,
-            #stop=["\"\"\""]
-        )
-        
-        return [code + '\n' + choice['text'] for choice in response["choices"]]
+            return [choice['text'] for choice in response["choices"]]        
+        else:
+            response = openai.Completion.create(
+                engine="code-davinci-001",
+                prompt=code,
+                n=n,
+                temperature=temperature,
+                #stop=["\"\"\""]
+            )
+            
+            return [code + '\n' + choice['text'] for choice in response["choices"]]
+    except KeyError:
+        return []
 
 def explore_gpt(code, instruction=None, batch_size=1, heat_per_batch=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
