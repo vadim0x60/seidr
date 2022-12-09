@@ -1,9 +1,13 @@
 import openai
 from fire import Fire
-from tenacity import retry, retry_if_exception_type, wait_fixed
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import wait_random_exponential, wait_fixed
 
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError), 
-       wait=wait_fixed(20))
+       wait=wait_random_exponential())
+@retry(retry=retry_if_exception_type(openai.error.APIError),
+       wait=wait_fixed(20),
+       stop=stop_after_attempt(3))
 def query_gpt(code, instruction=None, n=1, temperature=1.0):
     """
     Get code snippets from GPT-3. 
