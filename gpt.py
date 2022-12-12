@@ -1,11 +1,14 @@
 import openai
 import logging
 from fire import Fire
-from tenacity import retry, retry_if_exception_type, wait_fixed
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import wait_random_exponential, wait_fixed
 
-# 20 requests per minute are allowed
-@retry(retry=retry_if_exception_type(openai.error.RateLimitError),
-       wait=wait_fixed(20))
+@retry(retry=retry_if_exception_type(openai.error.RateLimitError), 
+       wait=wait_random_exponential())
+@retry(retry=retry_if_exception_type(openai.error.APIError),
+       wait=wait_fixed(20),
+       stop=stop_after_attempt(3))
 def query_gpt(code, instruction=None, n=1, temperature=1.0):
     """
     Get code snippets from GPT-3. 
@@ -15,27 +18,29 @@ def query_gpt(code, instruction=None, n=1, temperature=1.0):
     """
     logging.info("Calling GPT")
 
-    if instruction:
-        response = openai.Edit.create(
-            engine="code-davinci-edit-001",
-            input=code,
-            n=n,
-            instruction=instruction,
-            temperature=temperature
-        )
-        result = [choice["text"] for choice in response["choices"] if "text" in choice.keys()]
-        return result if len(result) > 0 else [code]
-    else:
-        response = openai.Completion.create(
-            engine="code-davinci-001",
-            prompt=code,
-            n=n,
-            temperature=temperature,
-            # stop=["\"\"\""]
-        )
+    try:
+        if instruction:
+            response = openai.Edit.create(
+                engine="code-davinci-edit-001",
+                input=code,
+                n=n,
+                instruction=instruction,
+                temperature=temperature
+            ) 
 
-        return [code + "\n" + choice["text"] for choice in response["choices"]]
-
+            return [choice['text'] for choice in response["choices"]]        
+        else:
+            response = openai.Completion.create(
+                engine="code-davinci-001",
+                prompt=code,
+                n=n,
+                temperature=temperature,
+                #stop=["\"\"\""]
+            )
+            
+            return [code + '\n' + choice['text'] for choice in response["choices"]]
+    except KeyError:
+        return []
 
 def explore_gpt(code, instruction=None, batch_size=1, heat_per_batch=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
@@ -57,4 +62,7 @@ def explore_gpt(code, instruction=None, batch_size=1, heat_per_batch=0.2):
 
 
 if __name__ == '__main__':
-    Fire(explore_gpt)
+    import itertools
+
+    for code in itertools.islice(explore_gpt(input()), 10):
+        print(code)

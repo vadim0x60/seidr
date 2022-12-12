@@ -1,4 +1,4 @@
-from git import InvalidGitRepositoryError, GitCommandError, NoSuchPathError
+from git import GitError
 from git import Repo
 import shutil
 import logging
@@ -21,7 +21,7 @@ def ensure_repo(remote, path, branch=None):
 
         if branch:
             repo.git.checkout(branch)
-    except (InvalidGitRepositoryError, GitCommandError, NoSuchPathError):
+    except GitError:
         shutil.rmtree(path, ignore_errors=True)
         repo = Repo.clone_from(remote, path)
 
@@ -36,6 +36,15 @@ def ensure_repo(remote, path, branch=None):
                 # repo.git.commit(m=f'New branch {branch}')
                 repo.git.push('--set-upstream', repo.remote().name, branch)
 
-            # repo.remotes.origin.push()
-            # repo.git.checkout(branch)
     return repo
+
+
+def config_repo(dir, branch):
+    try:
+        import os
+        repo = ensure_repo(os.environ['GITHUB_REMOTE'], dir, branch=branch)
+        repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
+        repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
+        return repo
+    except (KeyError, GitError):
+        return None

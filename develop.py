@@ -1,32 +1,24 @@
+from gpt import explore_gpt
+from prompt import initial_prompt, debug_prompt, start_coding
+import functools
 import itertools
 from programlib import Program
 
-from gpt import explore_gpt
-from prompt import initial_prompt, debug_prompt, start_coding
+
+def rolling_best(objects, max_score=1, metric=lambda x: x):
+    best_score = None
+
+    for object in objects:
+        score = metric(object)
+        if best_score is None or score > best_score:
+            best_score = score
+            yield object
+
+        if best_score >= max_score:
+            break
 
 
-def rolling_best(candidates, log_f, max_score=1):
-    best_program = None
-
-    for program, test_runs in candidates:
-        if not best_program or program.avg_score > best_program.avg_score:
-            best_program = program
-
-        log_f({
-            'best_avg_score': best_program.avg_score,
-            'best_pass_rate': best_program.pass_rate,
-            'avg_score': program.avg_score,
-            'pass_rate': program.pass_rate,
-        })
-
-        if best_program == program:
-            yield best_program
-
-            if best_program.avg_score == max_score:
-                break
-
-
-def beam_search(beam, update, metric, beam_width=100, beam_depth=1000):
+def beam_search(beam, update, metric, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
 
     new_beam = []
@@ -35,17 +27,37 @@ def beam_search(beam, update, metric, beam_width=100, beam_depth=1000):
         yield code
         new_beam.append(code)
 
-    # while True:
-    idx = 0
-    while idx < beam_depth:
+    while True:
         beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
         new_beam = []
+
         for parent in beam:
-            # update(parent) returns branching_factor programs - do we go through them all?
             for child in update(parent):
                 yield child
                 new_beam.append(child)
-        idx += 1
+
+
+# def beam_search(beam, update, metric, beam_width=100, beam_depth=1000):
+#     """Generic evolutionary algorithm for improving anything"""
+#
+#     new_beam = []
+#
+#     for code in beam:
+#         yield code
+#         new_beam.append(code)
+#
+#     # while True:
+#     idx = 0
+#     while idx < beam_depth:
+#         beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
+#         new_beam = []
+#         for parent in beam:
+#             # update(parent) returns branching_factor programs - do we go through them all?
+#             for child in update(parent):
+#                 yield child
+#                 new_beam.append(child)
+#         idx += 1
+
 
 def distribute_heat(heat, n, batch_size):
     batch_count = n // batch_size + 1
@@ -53,9 +65,10 @@ def distribute_heat(heat, n, batch_size):
     return heat_per_batch
 
 
-def draft(task, task_description, tests, language, n_pairs_in_prompt, batch_size=10, limit_n=None):
+def draft(task_description, examples, language, batch_size=10, limit_n=None):
     heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
-    prompt = initial_prompt(task, task_description, tests, n_pairs_in_prompt)
+    prompt = initial_prompt(task_description, examples)
+
     start = start_coding(prompt, language=language)
 
     codes = explore_gpt(start, batch_size=batch_size, heat_per_batch=heat_per_batch)
@@ -80,19 +93,32 @@ def test(code, tests, language='C++'):
     return program, program.test(tests)
 
 
-def develop(task, task_description, tests, n_pairs_in_prompt, beam_depth,
-            debug_prompt_text='Make sure {i} -> {o}', language='C++',
-            beam_width=100, branching_factor=100, log_f=lambda x: x,
+# TODO: is beam size === beam depth?
+def develop(task_description, examples=tuple(), tests=tuple(),
+            debug_prompt_text='Make sure {i} -> {o}',
+            language='C++',
+            beam_width=100,
+            branching_factor=10,
+            max_programs=None,
+            log_metrics=print,
+            log_program=lambda p: print(p.read()),
             batch_size=10):
     """
     Write a program in language that solves task and passes tests.
     Solve debug-rewrite trade-off with beam search of given beam size
 
-    https://vadim.me/publications/unreasonable#search
-    """
+    examples is a sequence of (inputs, outputs) pairs
+    where inputs and outputs are sequences of strings (lines of code)
+    likewise for tests
 
-    codes = draft(task, task_description, tests, language,
-                  n_pairs_in_prompt=n_pairs_in_prompt,
+    examples are used in the prompt for the language model,
+    while tests are used to select the best solution
+
+    Returns a generator of programs where each program passes
+    more tests than the previous one. The last program in the generator
+    passes all tests.
+    """
+    codes = draft(task_description, examples, language,
                   batch_size=batch_size, limit_n=beam_width)
     beam = (test(code, tests, language) for code in codes)
 
@@ -102,20 +128,48 @@ def develop(task, task_description, tests, n_pairs_in_prompt, beam_depth,
         for code in debug(program.read(), debug_prompt_text, test_runs, branching_factor, batch_size=batch_size):
             yield test(code, tests, language)
 
-    def success_metric(candidate):
-        program, test_runs = candidate
+    def metric_logger(prefix):
+        def log(program):
+            log_metrics({
+                prefix + 'avg_score': program.avg_score,
+                prefix + 'pass_rate': program.pass_rate,
+            })
 
-        return program.avg_score
+            return program
 
-    solutionogen = beam_search(beam, debug_and_test, success_metric, beam_width, beam_depth)
+        return log
 
-    return rolling_best(solutionogen, log_f)
+    def limit_n(programs):
+        for idx, program in enumerate(programs):
+            log_metrics({
+                'idx': idx
+            })
+
+            yield program
+
+            if max_programs and idx >= max_programs:
+                break
+
+    solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_width)
+    solutionogen = (program for program, test_runs in solutionogen)
+    solutionogen = limit_n(solutionogen)
+    solutionogen = map(metric_logger(''), solutionogen)
+    solutionogen = rolling_best(solutionogen, max_score=1, metric=lambda prog: prog.avg_score)
+
+    solution = None
+
+    for solution in solutionogen:
+        metric_logger('best_')(solution)
+        log_program(solution)
+
+    return solution
 
 
 if __name__ == '__main__':
-    tests = [([], ['Hello World'])]
-    language = "C++"
-    *_, perfect_solution = develop('Hello World', f'Write a program that prints "Hello World"',
-                                   tests, log_f=print,
-                                   language=language, beam_width=2, branching_factor=4, batch_size=8)
-    print(perfect_solution.read())
+    task = 'A program that outputs "Hello World"'
+    examples = [
+        ([''], ['Hello World'])
+    ]
+
+    # Use the same IO examples for prompt and tests
+    develop(task, examples, examples)
