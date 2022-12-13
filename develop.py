@@ -79,11 +79,11 @@ def draft(task_description, examples, language, batch_size=10, limit_n=None):
     return codes
 
 
-def debug(code, debug_prompt_text, test_runs, n, batch_size=10):
+def debug(code, debug_prompt_text, test_runs, n, batch_size=10, task_description=None):
     """Generate n attempts to fix program so that it passes tests"""
 
     return explore_gpt(code,
-                       instruction=debug_prompt(test_runs, debug_prompt_text),
+                       instruction=debug_prompt(test_runs, debug_prompt_text, task_description),
                        batch_size=batch_size,
                        heat_per_batch=distribute_heat(1, n, batch_size))
 
@@ -125,7 +125,8 @@ def develop(task_description, examples=tuple(), tests=tuple(),
     def debug_and_test(candidate):
         program, test_runs = candidate
 
-        for code in debug(program.read(), debug_prompt_text, test_runs, branching_factor, batch_size=batch_size):
+        for code in debug(program.read(), debug_prompt_text, test_runs, branching_factor,
+                          batch_size=batch_size, task_description=task_description):
             yield test(code, tests, language)
 
     def metric_logger(prefix):

@@ -26,3 +26,7 @@ notes/
 logs
 wandb
 solutions
+
+# Slurm
+scripts/
+

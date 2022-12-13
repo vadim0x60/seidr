@@ -1,17 +1,16 @@
 import logging
 import os
-import psb2
-import pandas as pd
 import random
-import time
-import wandb
-
-from fire import Fire
-from more_itertools import chunked
 from pathlib import Path
 from uuid import uuid4
+
+import pandas as pd
+import psb2
+from fire import Fire
+from more_itertools import chunked
 from programlib import language_
 
+import wandb
 from develop import develop
 from github import config_repo, upload_file
 
@@ -79,14 +78,13 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO,
-                        filename=f'./logs/run_bf{branching_factor}_promptid{debug_prompt_id}.log')
+                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
 
     baseline = pushgp_success_rates[problem]
-
     # Passing locals() as parameter to avoid RecursionError in wandb
     # when config = locals() as a variable, config contains itself recursively
     run = wandb.init(project='nl2ml-codex', config=locals())
+    run.config['task_id'] = get_task_id()
 
     language = language_(language)
     os.makedirs('solutions', exist_ok=True)
@@ -107,6 +105,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
         DATA_PATH, problem, max(valid_examples, prompt_examples),
         test_examples, format='competitive')
     prompt_data = train_data[:prompt_examples]
+    # TODO discuss valid_data = train_data[prompt_examples:valid_examples + prompt_examples]
     valid_data = train_data[:valid_examples]
 
     if mode == 'debug':
@@ -139,22 +138,43 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     run.finish()
 
 
+def get_task_id():
+    try:
+        task_id = os.environ.get('TASK_ID') or int(os.environ.get('SLURM_ARRAY_TASK_ID')) - 1
+    except TypeError:
+        task_id = None
+    return task_id
+
 experiments = [
     {'problem': problem, 
      'language': language, 
      'branching_factor': branching_factor, 
      'max_programs': 1000, 
-     'beam_size': branching_factor}
+     'beam_width': branching_factor}
     for problem in task_descriptions.keys()
     for language in ('C++', 'Python')
     for branching_factor in (1, 10, 100, 1000)
 ]
 
+experiments_manual_prompt = [
+    {'problem': problem,
+     'language': language,
+     'branching_factor': branching_factor,
+     'max_programs': 1000,
+     'beam_width': branching_factor,
+     'debug_prompt_id': debug_prompt_id}
+    for debug_prompt_id in range(10)
+    for language in ('C++', 'Python')
+    for problem in task_descriptions.keys()
+    for branching_factor in [1]
+]
+
 if __name__ == '__main__':
-    task_id = os.environ.get('TASK_ID') or os.environ.get('SLURM_ARRAY_TASK_ID')
+    # TODO: 10000..1000X vs 0...X
+    task_id = get_task_id()
     logger.info('Start')
     if task_id is not None:
-        run_benchmark(**experiments[int(task_id)])
+        run_benchmark(**experiments_manual_prompt[int(task_id)])
     else:
         Fire(run_benchmark)
     logger.info('Finish')
