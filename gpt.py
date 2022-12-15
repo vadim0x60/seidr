@@ -26,8 +26,7 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
             temperature=temperature
         )
         result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-        logging.info(f'\nInside query_gpt():\nThis is result of GPT3 bug description by completion: \n{result[0]}\n')
-        return result if len(result) > 0 else [""]
+        return result if len(result) > 0 else []
     elif instruction:
         response = openai.Edit.create(
             engine="code-davinci-edit-001",
@@ -64,6 +63,7 @@ def explore_gpt(code='', instruction=None, code_behaviour=None, batch_size=1, he
         # Update temperature but keep it 1 at max
         temperature = temperature + heat_per_batch \
             if 1.0 - temperature >= heat_per_batch else temperature
+
         yield from query_gpt(code, instruction, code_behaviour,
                              n=batch_size, temperature=temperature)
 

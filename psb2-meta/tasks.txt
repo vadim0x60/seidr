@@ -20,6 +20,8 @@ fuel-cost
 Given a vector of positive integers, divide each by 3, round the result down to the nearest integer, and subtract 2. Return the sum of all of the new integers in the vector.
 gcd
 Given two integers, return the largest integer that divides each of the integers evenly. Indices of Substring (CW) Given a text string and a target string, return a vector of integers of the indices at which the target appears in the text. If the target string overlaps itself in the text, all indices (including those overlapping) should be returned. 
+indices-of-substring
+Given a text string and a target string, return a list of integers of the indices at which the target appears in the text. Targets may overlap.
 leaders
 Given a vector of positive integers, return a vector of the leaders in that vector. A leader is deﬁned as a number that is greater than or equal to all the numbers tothe right of it. The rightmost element is always a leader. 
 luhn

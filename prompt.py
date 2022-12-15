@@ -17,6 +17,33 @@ def initial_prompt(task_description, examples):
     return prompt
 
 
+def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_output, actual_output):
+    """
+    Create description of a bug using GPT3 completion.
+    """
+    assert 'GPT ---' in debug_prompt_text and len(debug_prompt_text.split(' --- ') >= 3), 'Invalid prompt'
+    _, code_behaviour, debug_prompt_text = debug_prompt_text.split(' --- ')
+    # Form problem description using template
+    code_behaviour = code_behaviour.format(
+        t=task_description,
+        i=input,
+        o=expected_output,
+        a=actual_output)
+
+    # Get GPT summary of a bug
+    # bug_description = query_gpt(code='', code_behaviour=code_behaviour, n=1, temperature=0.0)[0]
+    bug_description = next(explore_gpt(code='', code_behaviour=code_behaviour, batch_size=1, heat_per_batch=0.0))
+
+    # Form debug prompt using template
+    debug_prompt_text = debug_prompt_text.format(
+        s=bug_description,
+        t=task_description,
+        i=input,
+        o=expected_output,
+        a=actual_output)
+    return debug_prompt_text
+
+
 def debug_prompt(test_runs, debug_prompt_text, task_description=None):
     mistake = [run for run in test_runs if run.correctness == 0][0]
 
@@ -25,11 +52,10 @@ def debug_prompt(test_runs, debug_prompt_text, task_description=None):
     else:
         i = '\\n'.join(mistake.input_lines)
         o = '\\n'.join(mistake.expected_output_lines)
-        if 'GPT:' in debug_prompt_text:
-            debug_prompt_text = debug_prompt_text.split('GPT:')[1].strip()
+        if 'GPT ---' in debug_prompt_text:
             output_lines = '\n'.join([s.decode("utf-8") for s in mistake.output_lines])
-            return debug_prompt_text.format(
-                s=autocomplete_bug_description(task_description, i, o, output_lines))
+            return gpt_assisted_prompt(
+                debug_prompt_text, task_description, mistake.input_lines, mistake.expected_output_lines, output_lines)
         return debug_prompt_text.format(i=i, o=o)
 
 
@@ -40,22 +66,3 @@ def start_coding(prompt, language='C++'):
         template = Template(f.read())
 
     return template.substitute(prompt=prompt)
-
-
-def autocomplete_bug_description(task_description, input, expected_output, actual_output):
-    """
-    Create description of a bug using GPT3 completion.
-    """
-    code_behaviour = f'The code should solve the following problem: {task_description}\n' \
-                     f'The code must return {expected_output} for input {input}, \n' \
-                     f'but it returns \n{actual_output} \n' \
-                     f'Obviously, the error is that '
-    # as a senior software engineer, I give you my feedback
-    # TODO: in prompts - # GPT: prompt for gpt3 text -> Fix bugs in code {s}
-    bug_description = query_gpt(code='', instruction=None, code_behaviour=code_behaviour, n=1, temperature=0.0)[0]
-    logging.info(f'\nBug description - output of query_gpt(...): \n{bug_description}\nBug description finished')
-
-    bug_description_2 = next(explore_gpt(code='', instruction=None, code_behaviour=code_behaviour,
-                                         batch_size=1, heat_per_batch=0.0))[0]
-    logging.info(f'\nBug description - next(explore_gpt(...)): \n{bug_description_2}\nBug description finished')
-    return bug_description

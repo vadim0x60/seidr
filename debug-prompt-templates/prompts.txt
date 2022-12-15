@@ -8,4 +8,6 @@
 7	Code must correspond instructions in comments and {i} must yield {o}
 8	Program takes {i} as input and returns {o} as output
 9	See comments in code and return {o} for input {i}
-10	GPT: Fix {s}
+10	GPT --- The code should solve the following problem: {t}\nThe code must return {o} for input {i}, \nbut it returns \n{a} \nObviously, the error is that  --- Fix {s}
+11	GPT --- The code should solve the following problem: {t}\nThe code must return {o} for input {i}, \nbut it returns \n{a} \nThe error is that  --- Fix {s}
+12	GPT --- Problem description: {t}\nThe code must return {o} for input {i}, \nbut it returns \n{a} \nIt is clear the error is that  --- Fix {s}
