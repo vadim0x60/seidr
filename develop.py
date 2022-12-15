@@ -1,5 +1,5 @@
 from gpt import explore_gpt
-from prompt import initial_prompt, debug_prompt, start_coding
+from prompt import initial_prompt, write_debug_prompt, start_coding
 import functools
 import itertools
 from programlib import Program
@@ -52,11 +52,11 @@ def draft(task_description, examples, language, batch_size=10, limit_n=None):
 
     return codes
 
-def debug(code, test_runs, n, batch_size=10):
+def debug(code, debug_prompt_text, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
 
     return explore_gpt(code, 
-                       instruction=debug_prompt(test_runs),
+                       instruction=debug_prompt_text,
                        batch_size=batch_size,
                        heat_per_batch=distribute_heat(1, n, batch_size))
 
@@ -64,10 +64,15 @@ def test(code, tests, language='C++'):
     program = Program(code, language=language)
     return program, program.test(tests)
 
-def develop(task_description, examples=tuple(), tests=tuple(), language='C++', 
-            beam_size=100, branching_factor=10, 
-            log_metrics=print, log_program=lambda p: print(p.read()),
-            batch_size=10, max_programs=None):
+def develop(task_description, examples=tuple(), tests=tuple(),
+            debug_prompt_template='Make sure {i} -> {o}',
+            language='C++',
+            beam_width=100,
+            branching_factor=10,
+            max_programs=None,
+            log_metrics=print,
+            log_program=lambda p: print(p.read()),
+            batch_size=10):
     """
     Write a program in language that solves task and passes tests.
     Solve debug-rewrite trade-off with beam search of given beam size
@@ -84,13 +89,15 @@ def develop(task_description, examples=tuple(), tests=tuple(), language='C++',
     passes all tests.
     """
     codes = draft(task_description, examples, language, 
-                  batch_size=batch_size, limit_n=beam_size)    
+                  batch_size=batch_size, limit_n=beam_width)    
     beam = (test(code, tests, language) for code in codes)
 
     def debug_and_test(candidate):
         program, test_runs = candidate
+        dp = write_debug_prompt(test_runs, debug_prompt_template, task_description)
 
-        for code in debug(program.read(), test_runs, branching_factor, batch_size=batch_size):
+        for code in debug(program.read(), dp,
+                          n=branching_factor, batch_size=batch_size):
             yield test(code, tests, language)
 
     def metric_logger(prefix):
@@ -114,7 +121,7 @@ def develop(task_description, examples=tuple(), tests=tuple(), language='C++',
             if max_programs and idx >= max_programs:
                 break
 
-    solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_size)
+    solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_width)
     solutionogen = (program for program, test_runs in solutionogen)
     solutionogen = limit_n(solutionogen)
     solutionogen = map(metric_logger(''), solutionogen)
