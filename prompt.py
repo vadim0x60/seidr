@@ -21,7 +21,7 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
     """
     Create description of a bug using GPT3 completion.
     """
-    assert 'GPT ---' in debug_prompt_text and len(debug_prompt_text.split(' --- ') >= 3), 'Invalid prompt'
+    assert 'GPT ---' in debug_prompt_text and len(debug_prompt_text.split(' --- ')) >= 3, 'Invalid prompt'
     _, code_behaviour, debug_prompt_text = debug_prompt_text.split(' --- ')
     # Form problem description using template
     code_behaviour = code_behaviour.format(
@@ -45,6 +45,7 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
 
 
 def debug_prompt(test_runs, debug_prompt_text, task_description=None):
+    logging.info('Updating debug prompt')
     mistake = [run for run in test_runs if run.correctness == 0][0]
 
     if mistake.error_lines:

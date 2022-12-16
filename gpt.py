@@ -16,9 +16,8 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
     If instruction is not specified, the code is extended (autocompleted),
     otherwise it's edited according to the instruction.
     """
-    logging.info("Calling GPT")
-
     if code_behaviour:
+        logging.info("Calling GPT for bug summarization")
         response = openai.Completion.create(
             engine="text-davinci-003",
             prompt=code_behaviour,
@@ -26,8 +25,11 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
             temperature=temperature
         )
         result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
+        logging.info(f"Bug summary: {result[0]}")
         return result if len(result) > 0 else []
     elif instruction:
+        logging.info("Calling Codex-edit to debug code")
+        # logging.info(f"\n\ncode\n{code}\n\nt = {temperature}\n\nprompt = {instruction}\n\n")
         response = openai.Edit.create(
             engine="code-davinci-edit-001",
             input=code,
@@ -38,6 +40,7 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
         result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
         return result if len(result) > 0 else []
     else:
+        logging.info("Calling Codex-completion to create initial program")
         response = openai.Completion.create(
             engine="code-davinci-001",
             prompt=code,
@@ -47,7 +50,7 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
         result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
         return result if len(result) > 0 else [code]
 
-
+# TODO: batch_size = min(batch_size, branching_factor)
 def explore_gpt(code='', instruction=None, code_behaviour=None, batch_size=1, heat_per_batch=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
 
@@ -62,7 +65,7 @@ def explore_gpt(code='', instruction=None, code_behaviour=None, batch_size=1, he
         # That would lead to a batch of identical code snippets
         # Update temperature but keep it 1 at max
         temperature = temperature + heat_per_batch \
-            if 1.0 - temperature >= heat_per_batch else temperature
+            if 1.0 - temperature > heat_per_batch else temperature
 
         yield from query_gpt(code, instruction, code_behaviour,
                              n=batch_size, temperature=temperature)
