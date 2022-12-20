@@ -1,8 +1,10 @@
+import itertools
+import logging
+
+from programlib import Program
+
 from gpt import explore_gpt
 from prompt import initial_prompt, debug_prompt, start_coding
-import functools
-import itertools
-from programlib import Program
 
 
 def rolling_best(objects, max_score=1, metric=lambda x: x):
@@ -37,28 +39,6 @@ def beam_search(beam, update, metric, beam_width=100):
                 new_beam.append(child)
 
 
-# def beam_search(beam, update, metric, beam_width=100, beam_depth=1000):
-#     """Generic evolutionary algorithm for improving anything"""
-#
-#     new_beam = []
-#
-#     for code in beam:
-#         yield code
-#         new_beam.append(code)
-#
-#     # while True:
-#     idx = 0
-#     while idx < beam_depth:
-#         beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
-#         new_beam = []
-#         for parent in beam:
-#             # update(parent) returns branching_factor programs - do we go through them all?
-#             for child in update(parent):
-#                 yield child
-#                 new_beam.append(child)
-#         idx += 1
-
-
 def distribute_heat(heat, n, batch_size):
     batch_count = n // batch_size + 1
     heat_per_batch = heat / batch_count
@@ -79,12 +59,13 @@ def draft(task_description, examples, language, batch_size=10, limit_n=None):
     return codes
 
 
-def debug(code, debug_prompt_text, test_runs, n, batch_size=10, task_description=None):
+def debug(code, debug_prompt_text, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
-    return explore_gpt(code,
-                       instruction=debug_prompt(test_runs, debug_prompt_text, task_description),
-                       batch_size=batch_size,
-                       heat_per_batch=distribute_heat(1, n, batch_size))
+    codegen = explore_gpt(code,
+                          instruction=debug_prompt_text,
+                          batch_size=batch_size,
+                          heat_per_batch=distribute_heat(1, n, batch_size))
+    return itertools.islice(codegen, n)
 
 
 def test(code, tests, language='C++'):
@@ -92,7 +73,6 @@ def test(code, tests, language='C++'):
     return program, program.test(tests)
 
 
-# TODO: is beam size === beam depth?
 def develop(task_description, examples=tuple(), tests=tuple(),
             debug_prompt_text='Make sure {i} -> {o}',
             language='C++',
@@ -122,10 +102,12 @@ def develop(task_description, examples=tuple(), tests=tuple(),
     beam = (test(code, tests, language) for code in codes)
 
     def debug_and_test(candidate):
+        logging.debug(f'Running debug_and_test')
         program, test_runs = candidate
 
-        for code in debug(program.read(), debug_prompt_text, test_runs, branching_factor,
-                          batch_size=batch_size, task_description=task_description):
+        for code in debug(program.read(), debug_prompt(test_runs, debug_prompt_text, task_description),
+                          n=branching_factor, batch_size=batch_size):
+            logging.debug(f'\nCode: \n{code}\n')
             yield test(code, tests, language)
 
     def metric_logger(prefix):
@@ -144,7 +126,7 @@ def develop(task_description, examples=tuple(), tests=tuple(),
             log_metrics({
                 'idx': idx
             })
-
+            logging.debug(f'\nProgram idx: {idx}\n')
             yield program
 
             if max_programs and idx >= max_programs:

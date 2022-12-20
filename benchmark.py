@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 
 DATA_PATH = os.environ.get('DATA_PATH') or 'psb2'
 
+task_descriptions = []
 with open('psb2-meta/tasks.txt') as f:
-    task_descriptions = {name.strip(): description.strip() 
+    task_descriptions = {name.strip(): description.strip()
                          for name, description in chunked(f.readlines(), 2)}
 
 with open('debug-prompt-templates/prompts.txt') as f:
@@ -85,6 +86,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     # when config = locals() as a variable, config contains itself recursively
     run = wandb.init(project='nl2ml-codex', config=locals())
     run.config['task_id'] = get_task_id()
+    run.config['slurm_job_id'] = os.environ.get('SLURM_JOB_ID')
 
     language = language_(language)
     os.makedirs('solutions', exist_ok=True)
@@ -105,7 +107,6 @@ def run_benchmark(problem, language='C++', branching_factor=100,
         DATA_PATH, problem, max(valid_examples, prompt_examples),
         test_examples, format='competitive')
     prompt_data = train_data[:prompt_examples]
-    # TODO discuss valid_data = train_data[prompt_examples:valid_examples + prompt_examples]
     valid_data = train_data[:valid_examples]
 
     if mode == 'debug':
@@ -148,10 +149,10 @@ def get_task_id():
 
 
 experiments = [
-    {'problem': problem, 
-     'language': language, 
-     'branching_factor': branching_factor, 
-     'max_programs': 1000, 
+    {'problem': problem,
+     'language': language,
+     'branching_factor': branching_factor,
+     'max_programs': 1000,
      'beam_width': branching_factor}
     for problem in task_descriptions.keys()
     for language in ('C++', 'Python')
@@ -165,14 +166,13 @@ experiments_manual_prompt = [
      'max_programs': 1000,
      'beam_width': branching_factor,
      'debug_prompt_id': debug_prompt_id}
-    for debug_prompt_id in range(10)
-    for language in ('C++', 'Python')
+    for debug_prompt_id in range(13)
+    for language in ('C++', 'Python', 'Java')
     for problem in task_descriptions.keys()
     for branching_factor in [1]
 ]
 
 if __name__ == '__main__':
-    # TODO: 10000..1000X vs 0...X
     task_id = get_task_id()
     logger.info('Start')
     if task_id is not None:
@@ -180,4 +180,3 @@ if __name__ == '__main__':
     else:
         Fire(run_benchmark)
     logger.info('Finish')
-

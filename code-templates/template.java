@@ -9,11 +9,8 @@ import java.time.*;
 import java.math.*;
 import javax.swing.*;
 
-/*
-$prompt
-*/
-
-class  PGBSolution
-{
-    public static void main(String args[])
-    {
+class Solution {
+    public static void main(String args[]) {
+        /**
+        $prompt
+        */

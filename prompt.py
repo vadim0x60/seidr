@@ -1,8 +1,9 @@
 import logging
 from string import Template
+
 from programlib import language_
 
-from gpt import explore_gpt, query_gpt
+from gpt import explore_gpt
 
 
 def initial_prompt(task_description, examples):
@@ -17,7 +18,7 @@ def initial_prompt(task_description, examples):
     return prompt
 
 
-def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_output, actual_output):
+def gpt_assisted_prompt(debug_prompt_text, task_description, input_line, expected_output, actual_output):
     """
     Create description of a bug using GPT3 completion.
     """
@@ -26,7 +27,7 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
     # Form problem description using template
     code_behaviour = code_behaviour.format(
         t=task_description,
-        i=input,
+        i=input_line,
         o=expected_output,
         a=actual_output)
 
@@ -38,16 +39,16 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
     debug_prompt_text = debug_prompt_text.format(
         s=bug_description,
         t=task_description,
-        i=input,
+        i=input_line,
         o=expected_output,
         a=actual_output)
     return debug_prompt_text
 
 
 def debug_prompt(test_runs, debug_prompt_text, task_description=None):
+
     logging.info('Updating debug prompt')
     mistake = [run for run in test_runs if run.correctness == 0][0]
-
     if mistake.error_lines:
         return f'Fix {mistake.error_lines}'
     else:

@@ -1,13 +1,14 @@
-import openai
 import logging
-from fire import Fire
+
+import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 from tenacity import wait_random_exponential, wait_fixed
+
 
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
        wait=wait_random_exponential())
 @retry(retry=retry_if_exception_type(openai.error.APIError),
-       wait=wait_fixed(20),
+       wait=wait_fixed(30),
        stop=stop_after_attempt(3))
 def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0):
     """
@@ -17,7 +18,7 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
     otherwise it's edited according to the instruction.
     """
     if code_behaviour:
-        logging.info("Calling GPT for bug summarization")
+        logging.debug("Calling GPT for bug summarization")
         response = openai.Completion.create(
             engine="text-davinci-003",
             prompt=code_behaviour,
@@ -25,22 +26,30 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
             temperature=temperature
         )
         result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-        logging.info(f"Bug summary: {result[0]}")
+        logging.info(f"Bug summary by GPT: {result[0]}")
         return result if len(result) > 0 else []
     elif instruction:
-        logging.info("Calling Codex-edit to debug code")
-        # logging.info(f"\n\ncode\n{code}\n\nt = {temperature}\n\nprompt = {instruction}\n\n")
-        response = openai.Edit.create(
-            engine="code-davinci-edit-001",
-            input=code,
-            n=n,
-            instruction=instruction,
-            temperature=temperature
-        )
+        logging.debug(f"Calling Codex-edit to debug code with instruction \n{instruction}")
+        try:
+            response = openai.Edit.create(
+                engine="code-davinci-edit-001",
+                input=code,
+                n=n,
+                instruction=instruction,
+                temperature=temperature
+            )
+        except openai.error.InvalidRequestError:
+            response = openai.Edit.create(
+                engine="code-davinci-edit-001",
+                input=code,
+                n=n,
+                instruction="Update code to match description in the comments",
+                temperature=temperature
+            )
         result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
         return result if len(result) > 0 else []
     else:
-        logging.info("Calling Codex-completion to create initial program")
+        logging.debug(f"Calling Codex-completion to create initial program from template:\n{code}")
         response = openai.Completion.create(
             engine="code-davinci-001",
             prompt=code,
@@ -50,7 +59,7 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
         result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
         return result if len(result) > 0 else [code]
 
-# TODO: batch_size = min(batch_size, branching_factor)
+
 def explore_gpt(code='', instruction=None, code_behaviour=None, batch_size=1, heat_per_batch=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
 
