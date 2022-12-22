@@ -33,7 +33,11 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input_line, expecte
 
     # Get GPT summary of a bug
     # bug_description = query_gpt(code='', code_behaviour=code_behaviour, n=1, temperature=0.0)[0]
-    bug_description = next(explore_gpt(code='', code_behaviour=code_behaviour, batch_size=1, heat_per_batch=0.0))
+    bug_description = next(explore_gpt(code='',
+                                       instruction=None,
+                                       code_behaviour=code_behaviour,
+                                       batch_size=1,
+                                       heat_per_batch=0.0))
 
     # Form debug prompt using template
     debug_prompt_text = debug_prompt_text.format(
@@ -48,17 +52,26 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input_line, expecte
 def debug_prompt(test_runs, debug_prompt_text, task_description=None):
 
     logging.info('Updating debug prompt')
-    mistake = [run for run in test_runs if run.correctness == 0][0]
-    if mistake.error_lines:
-        return f'Fix {mistake.error_lines}'
+    mistake = [run for run in test_runs if run.correctness == 0]
+    if len(mistake) > 0:
+        mistake = mistake[0]
+        if mistake.error_lines:
+            return f'Fix {mistake.error_lines}'
+        else:
+            i = '\\n'.join(mistake.input_lines)
+            o = '\\n'.join(mistake.expected_output_lines)
+            if 'GPT ---' in debug_prompt_text:
+                output_lines = ''
+                try:
+                    output_lines = '\n'.join([s.decode("utf-8") for s in mistake.output_lines])
+                except AttributeError:
+                    output_lines = '\n'.join([s for s in mistake.output_lines])
+                return gpt_assisted_prompt(
+                    debug_prompt_text, task_description, mistake.input_lines, mistake.expected_output_lines, output_lines)
+            return debug_prompt_text.format(i=i, o=o)
     else:
-        i = '\\n'.join(mistake.input_lines)
-        o = '\\n'.join(mistake.expected_output_lines)
-        if 'GPT ---' in debug_prompt_text:
-            output_lines = '\n'.join([s.decode("utf-8") for s in mistake.output_lines])
-            return gpt_assisted_prompt(
-                debug_prompt_text, task_description, mistake.input_lines, mistake.expected_output_lines, output_lines)
-        return debug_prompt_text.format(i=i, o=o)
+        logging.info('\n\nrun.correctness = 1 for all runs, mistake lines are empty\n\n')
+        return f'Fix code'
 
 
 def start_coding(prompt, language='C++'):

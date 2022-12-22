@@ -126,13 +126,18 @@ def develop(task_description, examples=tuple(), tests=tuple(),
             log_metrics({
                 'idx': idx
             })
-            logging.debug(f'\nProgram idx: {idx}\n')
+            logging.info(f'\nProgram idx: {idx}\n')
+            if int(idx) % 10 == 0:
+                logging.info(f'\nProgram code:\n{program.read()}')
             yield program
 
             if max_programs and idx >= max_programs:
                 break
 
-    solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_width)
+    solutionogen = beam_search(beam,
+                               update=debug_and_test,
+                               metric=lambda candidate: candidate[0].avg_score,
+                               beam_width=beam_width)
     solutionogen = (program for program, test_runs in solutionogen)
     solutionogen = limit_n(solutionogen)
     solutionogen = map(metric_logger(''), solutionogen)

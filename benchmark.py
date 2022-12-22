@@ -165,8 +165,9 @@ experiments_manual_prompt = [
      'branching_factor': branching_factor,
      'max_programs': 1000,
      'beam_width': branching_factor,
-     'debug_prompt_id': debug_prompt_id}
-    for debug_prompt_id in range(13)
+     'debug_prompt_id': debug_prompt_id,
+     'batch_size': 10}
+    for debug_prompt_id in range(11)
     for language in ('C++', 'Python', 'Java')
     for problem in task_descriptions.keys()
     for branching_factor in [1]
