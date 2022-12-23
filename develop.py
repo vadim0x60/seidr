@@ -55,10 +55,11 @@ def draft(task_description, examples, language, batch_size=10, limit_n=None):
 def debug(code, debug_prompt_text, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
 
-    return explore_gpt(code, 
-                       instruction=debug_prompt_text,
-                       batch_size=batch_size,
-                       heat_per_batch=distribute_heat(1, n, batch_size))
+    solutionogen = explore_gpt(code, 
+                               instruction=debug_prompt_text,
+                               batch_size=batch_size,
+                               heat_per_batch=distribute_heat(1, n, batch_size))
+    return itertools.islice(solutionogen, n)
 
 def test(code, tests, language='C++'):
     program = Program(code, language=language)
