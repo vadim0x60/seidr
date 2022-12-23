@@ -4,7 +4,9 @@ from tenacity import wait_random_exponential
 
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
        wait=wait_random_exponential())
-@retry(retry=retry_if_exception_type(openai.error.APIError),
+@retry(retry=retry_if_exception_type((openai.error.APIError, 
+                                      openai.error.InvalidRequestError, 
+                                      openai.error.APIConnectionError)),
        wait=wait_random_exponential(),
        stop=stop_after_attempt(50))
 def query_gpt(code=None, code_behavior=None, instruction=None, n=1, temperature=1.0):
