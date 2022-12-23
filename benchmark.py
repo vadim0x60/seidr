@@ -77,7 +77,7 @@ experiments = [
      'max_programs': 1000, 
      'beam_width': branching_factor}
     for problem in task_descriptions.keys()
-    for language in ('C++', 'Python')
+    for language in ('C++', 'Python', 'Java')
     for branching_factor in (1, 10, 100, 1000)
 ]
 
