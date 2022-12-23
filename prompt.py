@@ -42,7 +42,7 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
 
 
 def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
-    mistake = [run for run in test_runs if run.correctness == 0][0]
+    mistake = min(test_runs, key=lambda run: run.correctness)
 
     if mistake.error_lines:
         return f'Fix {mistake.error_lines}'
@@ -52,7 +52,8 @@ def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
         if 'GPT ---' in debug_prompt_text:
             output_lines = '\n'.join([s.decode("utf-8") for s in mistake.output_lines])
             return gpt_assisted_prompt(
-                debug_prompt_text, task_description, mistake.input_lines, mistake.expected_output_lines, output_lines)
+                debug_prompt_text, task_description, mistake.input_lines, 
+                mistake.expected_output_lines, output_lines)
         return debug_prompt_text.format(i=i, o=o)
 
 def start_coding(prompt, language='C++', temperature=0.0):
