@@ -5,7 +5,6 @@ from tenacity import wait_random_exponential
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
        wait=wait_random_exponential())
 @retry(retry=retry_if_exception_type((openai.error.APIError, 
-                                      openai.error.InvalidRequestError, 
                                       openai.error.APIConnectionError,
                                       openai.error.ServiceUnavailableError)),
        wait=wait_random_exponential(),
@@ -17,35 +16,39 @@ def query_gpt(code=None, code_behavior=None, instruction=None, n=1, temperature=
     If instruction is not specified, the code is extended (autocompleted),
     otherwise it's edited according to the instruction.
     """
-    if code_behavior:
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=code_behavior,
-            n=n,
-            temperature=temperature
-        )
-        result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-        return result if len(result) > 0 else []
-    elif code:
-        if instruction:
-            response = openai.Edit.create(
-                engine="code-davinci-edit-001",
-                input=code,
+    try:
+        if code_behavior:
+            response = openai.Completion.create(
+                engine="text-davinci-003",
+                prompt=code_behavior,
                 n=n,
-                instruction=instruction,
                 temperature=temperature
             )
             result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-            return result if len(result) > 0 else []
-        else:
-            response = openai.Completion.create(
-                engine="code-davinci-001",
-                prompt=code,
-                n=n,
-                temperature=temperature,
-            )
-            result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-            return result if len(result) > 0 else [code]
+        elif code:
+            if instruction:
+                response = openai.Edit.create(
+                    engine="code-davinci-edit-001",
+                    input=code,
+                    n=n,
+                    instruction=instruction,
+                    temperature=temperature
+                )
+                result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
+            else:
+                response = openai.Completion.create(
+                    engine="code-davinci-001",
+                    prompt=code,
+                    n=n,
+                    temperature=temperature,
+                )
+                result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
+                if len(result) == 0:
+                    result = [code]
+    except openai.error.InvalidRequestError:
+        result = []
+
+    return result
 
 def explore_gpt(code='', instruction=None, code_behavior=None, batch_size=1, heat_per_batch=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
