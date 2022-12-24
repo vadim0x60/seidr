@@ -43,8 +43,6 @@ def query_gpt(code=None, code_behavior=None, instruction=None, n=1, temperature=
                     temperature=temperature,
                 )
                 result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-                if len(result) == 0:
-                    result = [code]
     except openai.error.InvalidRequestError:
         result = []
 
