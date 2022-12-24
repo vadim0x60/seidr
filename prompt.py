@@ -49,25 +49,26 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input_line, expecte
     return debug_prompt_text
 
 
+def ignore_filename_in_compiler_output(lines):
+    return [s for s in lines if not 'File "' in s and s[-3:] != '.py' and not '.cpp' in s]
+
+
 def debug_prompt(test_runs, debug_prompt_text, task_description=None):
 
     logging.info('Updating debug prompt')
-    mistake = [run for run in test_runs if run.correctness == 0]
+    mistake = min(test_runs, key=lambda run: run.correctness)
     if len(mistake) > 0:
-        mistake = mistake[0]
         if mistake.error_lines:
-            return f'Fix {mistake.error_lines}'
+            error_lines = '\n'.join(mistake.error_lines)
+            return f'Fix {error_lines}'
         else:
             i = '\\n'.join(mistake.input_lines)
             o = '\\n'.join(mistake.expected_output_lines)
             if 'GPT ---' in debug_prompt_text:
-                output_lines = ''
-                try:
-                    output_lines = '\n'.join([s.decode("utf-8") for s in mistake.output_lines])
-                except AttributeError:
-                    output_lines = '\n'.join([s for s in mistake.output_lines])
+                output_lines = '\n'.join([s.decode("utf-8") if type(s)==bytes else s for s in mistake.output_lines])
                 return gpt_assisted_prompt(
-                    debug_prompt_text, task_description, mistake.input_lines, mistake.expected_output_lines, output_lines)
+                    debug_prompt_text, task_description, mistake.input_lines,
+                    mistake.expected_output_lines, output_lines)
             return debug_prompt_text.format(i=i, o=o)
     else:
         logging.info('\n\nrun.correctness = 1 for all runs, mistake lines are empty\n\n')

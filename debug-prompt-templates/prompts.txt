@@ -1,6 +1,6 @@
 0	Make sure that {i} -> {o}
-1	Make sure the code retuns {o} for input {i}
-2	Ensure that input {i} yeilds output {o}
+1	Make sure the code returns {o} for input {i}
+2	Ensure that input {i} yields output {o}
 3	Modify code to get {o} from {i}
 4	Code must correspond instructions in comments and {i} must yield {o}
 5	See comments in code and return {o} for input {i}
@@ -8,4 +8,4 @@
 7	GPT --- The code should solve the following problem: {t}. The code must return {o} for input {i} but it returns {a}. The error is that  --- Fix {s}
 8	GPT --- Problem description: {t}. The code must return {o} for input {i}, but it returns {a}. It is clear the error is that  --- Fix {s}
 9	GPT --- There is clearly a bug in code, because the code returns {a} for input {i} but output {o} is expected. The bug is that  --- Fix {s}
-10	GPT --- There is clearly a bug in code, because the code returns {a} for input {i} but output {o} is expected. The bug is that  --- Fix {s} and modify the code to retun {o} for input {i}
+10	GPT --- There is clearly a bug in code, because the code returns {a} for input {i} but output {o} is expected. The bug is that  --- Fix {s} and modify the code to return {o} for input {i}
