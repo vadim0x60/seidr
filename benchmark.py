@@ -7,7 +7,7 @@ import itertools
 import pandas as pd
 from pathlib import Path
 from uuid import uuid4
-from programlib import language_
+from programlib import language_, Program
 
 from github import config_repo, upload_file
 from develop import develop
@@ -27,13 +27,16 @@ pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
                                    sep='\t', index_col=['Problem'])
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
+def is_already_solved(solution_path, test_data):
+    with open(solution_path) as f:
+        return Program(f.read()).test(test_data) == 1.0
+
 def run_benchmark(problem, language='C++', branching_factor=100, 
                   max_programs=1000, beam_width=100,
                   prompt_examples=5, valid_examples=100, test_examples=2000):
     baseline = pushgp_success_rates[problem]
     
     config = locals()
-    run = wandb.init(project='nl2ml-codex', config=config)
     
     language = language_(language)
     os.makedirs('solutions', exist_ok=True)
@@ -50,8 +53,14 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     prompt_data = train_data[:prompt_examples]
     valid_data = train_data[:valid_examples]
 
+    filename = language.source.format(name=problem)
+    if is_already_solved(solutions_dir / filename, test_data):
+        print(f'{problem} is already solved, shutting down')
+        return
+
+    run = wandb.init(project='nl2ml-codex', config=config)
+
     def log_program(solution):
-        filename = language.source.format(name=problem)
         solution.save(solutions_dir / filename)
         if solutions_repo:
             idx = wandb.run.summary['idx']
