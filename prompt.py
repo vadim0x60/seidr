@@ -1,5 +1,6 @@
 from string import Template
 from programlib import language_
+from pathlib import Path
 from gpt import explore_gpt
 
 def initial_prompt(task_description, examples):
@@ -58,8 +59,9 @@ def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
 
 def start_coding(prompt, language='C++', temperature=0.0):
     language = language_(language)
+    template_name = language.source.format(name='template')
 
-    with open(language.source.format(name='template')) as f:
+    with open(Path('code-templates') / template_name) as f:
         template = Template(f.read())
 
     return template.substitute(prompt=prompt)

@@ -1,4 +1,3 @@
-using namespace std;
 #include <vector>
 #include <iostream>
 #include <string>
@@ -10,6 +9,8 @@ using namespace std;
 #include <set>
 #include <stack>
 #include <climits>
+
+using namespace std;
 
 /*
 $prompt
