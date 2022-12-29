@@ -1,8 +1,8 @@
 import logging
-import openai
 
+import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
-from tenacity import wait_random, wait_random_exponential
+from tenacity import wait_random_exponential
 
 
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
@@ -12,7 +12,7 @@ from tenacity import wait_random, wait_random_exponential
              retry_if_exception_type(openai.error.ServiceUnavailableError),
        wait=wait_random_exponential(max=600),
        stop=stop_after_attempt(50))
-def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0):
+def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
     """
     Get code snippets from GPT-3. 
     
@@ -20,11 +20,11 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
     otherwise it's edited according to the instruction.
     """
     try:
-        if code_behaviour:
+        if code_behavior:
             logging.info("Calling GPT for bug summarization")
             response = openai.Completion.create(
                 engine="text-davinci-003",
-                prompt=code_behaviour,
+                prompt=code_behavior,
                 n=n,
                 temperature=temperature
             )
@@ -59,7 +59,7 @@ def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0)
     return result
 
 
-def explore_gpt(code='', instruction=None, code_behaviour=None, batch_size=1, heat_per_batch=0.2):
+def explore_gpt(code='', instruction=None, code_behavior=None, batch_size=1, heat_per_batch=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
 
     # Beam search would be preferable, but it's computationally costly
@@ -72,11 +72,10 @@ def explore_gpt(code='', instruction=None, code_behaviour=None, batch_size=1, he
         # We intentionally avoid temperature=0
         # That would lead to a batch of identical code snippets
         # Update temperature but keep it 1 at max
-
         temperature = temperature + heat_per_batch \
-            if 1.0 - temperature > heat_per_batch else temperature
+            if 1.0 - temperature >= heat_per_batch else temperature
 
-        yield from query_gpt(code, instruction=instruction, code_behaviour=code_behaviour,
+        yield from query_gpt(code, instruction, code_behavior,
                              n=batch_size, temperature=temperature)
 
 

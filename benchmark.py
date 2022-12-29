@@ -1,19 +1,18 @@
 import logging
 import os
 import random
-from pathlib import Path
-from uuid import uuid4
-
 import pandas as pd
 import psb2
-from fire import Fire
-from more_itertools import chunked
-from programlib import language_
-from tenacity import retry, stop_after_delay, stop_after_attempt, after_nothing, after_log
-
 import wandb
 from develop import develop
 from github import config_repo, upload_file
+from fire import Fire
+from more_itertools import chunked
+from pathlib import Path
+from programlib import Program
+from programlib import language_
+from uuid import uuid4
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +35,11 @@ def title2kebabcase(title):
 pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
                                    sep='\t', index_col=['Problem'])
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
+
+
+def is_already_solved(solution_path, test_data):
+    with open(solution_path) as f:
+        return Program(f.read()).test(test_data) == 1.0
 
 
 def run_benchmark(problem, language='C++', branching_factor=100,
@@ -83,8 +87,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                         datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
 
     baseline = pushgp_success_rates[problem]
-    # Passing locals() as parameter to avoid RecursionError in wandb
-    # when config = locals() as a variable, config contains itself recursively
+
     run = wandb.init(project='nl2ml-codex', config=locals())
     run.config['task_id'] = get_task_id()
     run.config['slurm_job_id'] = os.environ.get('SLURM_JOB_ID')
@@ -117,8 +120,12 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                 with open(solutions_dir / filename, 'w') as f:
                     f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
+    filename = language.source.format(name=problem)
+    # if is_already_solved(solutions_dir / filename, test_data):
+    #     logging.info(f'{problem} is already solved, shutting down')
+    #     return
+
     def log_program(solution):
-        filename = language.source.format(name=problem)
         solution.save(solutions_dir / filename)
         if solutions_repo:
             idx = wandb.run.summary['idx']
@@ -150,13 +157,13 @@ def get_task_id():
 
 
 experiments = [
-    {'problem': problem,
-     'language': language,
-     'branching_factor': branching_factor,
-     'max_programs': 1000,
+    {'problem': problem, 
+     'language': language, 
+     'branching_factor': branching_factor, 
+     'max_programs': 1000, 
      'beam_width': branching_factor}
     for problem in task_descriptions.keys()
-    for language in ('C++', 'Python')
+    for language in ('C++', 'Python', 'Java')
     for branching_factor in (1, 10, 100, 1000)
 ]
 

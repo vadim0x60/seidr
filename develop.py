@@ -4,7 +4,7 @@ import logging
 from programlib import Program
 
 from gpt import explore_gpt
-from prompt import initial_prompt, debug_prompt, start_coding
+from prompt import initial_prompt, write_debug_prompt, start_coding
 
 
 def rolling_best(objects, max_score=1, metric=lambda x: x):
@@ -99,15 +99,16 @@ def develop(task_description, examples=tuple(), tests=tuple(),
     """
     codes = draft(task_description, examples, language,
                   batch_size=batch_size, limit_n=beam_width)
+
     beam = (test(code, tests, language) for code in codes)
 
     def debug_and_test(candidate):
         logging.debug(f'Running debug_and_test')
         program, test_runs = candidate
+        dp = write_debug_prompt(test_runs, debug_prompt_text, task_description)
 
-        for code in debug(program.read(), debug_prompt(test_runs, debug_prompt_text, task_description),
+        for code in debug(program.read(), dp,
                           n=branching_factor, batch_size=batch_size):
-            logging.debug(f'\nCode: \n{code}\n')
             yield test(code, tests, language)
 
     def metric_logger(prefix):
@@ -133,11 +134,7 @@ def develop(task_description, examples=tuple(), tests=tuple(),
 
             if max_programs and idx >= max_programs:
                 break
-
-    solutionogen = beam_search(beam,
-                               update=debug_and_test,
-                               metric=lambda candidate: candidate[0].avg_score,
-                               beam_width=beam_width)
+    solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_width)
     solutionogen = (program for program, test_runs in solutionogen)
     solutionogen = limit_n(solutionogen)
     solutionogen = map(metric_logger(''), solutionogen)

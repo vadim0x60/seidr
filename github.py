@@ -19,10 +19,11 @@ def upload_file(repo, filename, message=None):
     if not message:
         message = f'added {filename}'
 
+    repo.remotes.origin.pull()
     repo.index.add(filename)
     repo.index.commit(message)
     pullpush(repo)
-    logging.info(f'Pushed updates to git. \nCommit message: {message}')
+    logging.info(f'Tried to push updates to git. \nCommit message: {message}')
 
 
 def ensure_repo(remote, path, branch=None):
@@ -55,6 +56,7 @@ def config_repo(dir, branch):
         repo = ensure_repo(os.environ['GITHUB_REMOTE'], dir, branch=branch)
         repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
         repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
+        repo.config_writer().set_value('pull', 'rebase', False).release()
         return repo
     except (KeyError, GitError) as e:
         logging.info(f'config_repo exception {e}')
