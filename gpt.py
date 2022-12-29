@@ -2,15 +2,15 @@ import logging
 import openai
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
-from tenacity import wait_random_exponential
+from tenacity import wait_random, wait_random_exponential
 
 
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
-       wait=wait_random_exponential())
+       wait=wait_random_exponential(max=600))
 @retry(retry=retry_if_exception_type(openai.error.APIError) |
              retry_if_exception_type(openai.error.APIConnectionError) |
              retry_if_exception_type(openai.error.ServiceUnavailableError),
-       wait=wait_random_exponential(),
+       wait=wait_random_exponential(max=600),
        stop=stop_after_attempt(50))
 def query_gpt(code, instruction=None, code_behaviour=None, n=1, temperature=1.0):
     """

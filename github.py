@@ -3,6 +3,17 @@ from git import Repo
 import shutil
 import logging
 
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import wait_random_exponential
+from git.exc import GitCommandError
+
+@retry(retry=retry_if_exception_type(GitCommandError),
+       wait=wait_random_exponential(),
+       stop=stop_after_attempt(50))
+def pullpush(repo):
+    repo.remotes.origin.pull()
+    repo.remotes.origin.push()
+
 
 def upload_file(repo, filename, message=None):
     if not message:
@@ -10,8 +21,7 @@ def upload_file(repo, filename, message=None):
 
     repo.index.add(filename)
     repo.index.commit(message)
-    repo.remotes.origin.pull()
-    repo.remotes.origin.push()
+    pullpush(repo)
     logging.info(f'Pushed updates to git. \nCommit message: {message}')
 
 
@@ -33,7 +43,6 @@ def ensure_repo(remote, path, branch=None):
             else:
                 repo.git.checkout('-b' + branch)
                 repo.git.add(repo.working_dir)
-                # repo.git.commit(m=f'New branch {branch}')
                 repo.git.push('--set-upstream', repo.remote().name, branch)
 
     return repo
@@ -42,9 +51,11 @@ def ensure_repo(remote, path, branch=None):
 def config_repo(dir, branch):
     try:
         import os
+        logging.info('config_repo')
         repo = ensure_repo(os.environ['GITHUB_REMOTE'], dir, branch=branch)
         repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
         repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
         return repo
-    except (KeyError, GitError):
+    except (KeyError, GitError) as e:
+        logging.info(f'config_repo exception {e}')
         return None
