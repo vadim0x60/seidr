@@ -5,9 +5,12 @@ import logging
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 from tenacity import wait_random_exponential
-from git.exc import GitCommandError
+import git
+import gitdb
 
-@retry(retry=retry_if_exception_type(GitCommandError),
+@retry(retry=retry_if_exception_type(git.exc.GitCommandError) |
+             retry_if_exception_type(git.exc.BadName) |
+             retry_if_exception_type(gitdb.exc.BadName),
        wait=wait_random_exponential(),
        stop=stop_after_attempt(50))
 def pullpush(repo):
@@ -15,6 +18,11 @@ def pullpush(repo):
     repo.remotes.origin.push()
 
 
+@retry(retry=retry_if_exception_type(git.exc.GitCommandError) |
+             retry_if_exception_type(git.exc.BadName) |
+             retry_if_exception_type(gitdb.exc.BadName),
+       wait=wait_random_exponential(),
+       stop=stop_after_attempt(50))
 def upload_file(repo, filename, message=None):
     if not message:
         message = f'added {filename}'

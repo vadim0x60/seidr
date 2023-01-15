@@ -1,6 +1,6 @@
 .vscode
 __pycache__
-.config
+.config*
 
 # Env
 venv/

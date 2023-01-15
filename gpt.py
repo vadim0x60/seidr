@@ -2,16 +2,19 @@ import logging
 
 import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
-from tenacity import wait_random_exponential
+from tenacity import wait_random_exponential, wait_fixed
+
+token_error_message = 'tokens for the input and instruction but the maximum allowed is 3000. ' \
+                      'Please reduce the input or instruction length.'
 
 
-@retry(retry=retry_if_exception_type(openai.error.RateLimitError),
-       wait=wait_random_exponential(max=600))
 @retry(retry=retry_if_exception_type(openai.error.APIError) |
              retry_if_exception_type(openai.error.APIConnectionError) |
              retry_if_exception_type(openai.error.ServiceUnavailableError),
-       wait=wait_random_exponential(max=600),
-       stop=stop_after_attempt(50))
+       wait=wait_random_exponential(max=300),
+       stop=stop_after_attempt(5))
+@retry(retry=retry_if_exception_type(openai.error.RateLimitError),
+       wait=wait_random_exponential(max=600))
 def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
     """
     Get code snippets from GPT-3. 
@@ -45,7 +48,7 @@ def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
                 logging.info(f"Calling Codex-completion to create initial program from template")
                 logging.debug(f'template: \n{code}')
                 response = openai.Completion.create(
-                    engine="code-davinci-001",
+                    engine="code-davinci-002",
                     prompt=code,
                     n=n,
                     temperature=temperature,
@@ -53,9 +56,11 @@ def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
                 result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
                 if len(result) == 0:
                     result = [code]
-    except openai.error.InvalidRequestError:
+    except openai.error.InvalidRequestError as e:
         result = []
 
+        if token_error_message in e.error.message:
+            raise e
     return result
 
 
@@ -68,15 +73,19 @@ def explore_gpt(code='', instruction=None, code_behavior=None, batch_size=1, hea
     # We fix moderate temperature to get sufficiently varied code snippets from the model
     temperature = 0.0
 
-    while True:
+    while temperature <= 1:
         # We intentionally avoid temperature=0
         # That would lead to a batch of identical code snippets
         # Update temperature but keep it 1 at max
-        temperature = temperature + heat_per_batch \
-            if 1.0 - temperature >= heat_per_batch else temperature
+        temperature = temperature + heat_per_batch
 
-        yield from query_gpt(code, instruction, code_behavior,
-                             n=batch_size, temperature=temperature)
+        try:
+            yield from query_gpt(code, instruction, code_behavior,
+                                 n=batch_size, temperature=temperature)
+        except openai.error.InvalidRequestError as e:
+            if token_error_message in e.error.message:
+                logging.info('Stopping iterations due to token limit error')
+                break
 
 
 if __name__ == '__main__':

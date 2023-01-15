@@ -77,6 +77,9 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     prompt_examples : int
         number of I/O pairs taken from n_train_pairs to generate initial prompt
         for Codex completion model
+    batch_size : int
+        number of Codex outputs for the same prompt that will be generated at once
+        for one parent during the beam search
     mode : str
         'execute' or 'debug'
 
@@ -90,6 +93,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
 
     run = wandb.init(project='nl2ml-codex', config=locals())
     run.config['task_id'] = get_task_id()
+    run.config['slurm_array_job_id'] = os.environ.get('SLURM_ARRAY_TASK_ID')
     run.config['slurm_job_id'] = os.environ.get('SLURM_JOB_ID')
 
     language = language_(language)
@@ -97,7 +101,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     solutions_dir = Path('solutions') / str(uuid4())
 
     # if git env variables are set, this will set up a git repo
-    solutions_repo = config_repo(solutions_dir, branch=f'bf{branching_factor}_promptid{debug_prompt_id}')
+    solutions_repo = config_repo(solutions_dir, branch=f'bf{branching_factor}_promptid{debug_prompt_id}_{problem}')
     # if git env variables are not set, this will just create the directory
     os.makedirs(solutions_dir, exist_ok=True)
 
@@ -171,7 +175,7 @@ experiments_manual_prompt = [
     {'problem': problem,
      'language': language,
      'branching_factor': branching_factor,
-     'max_programs': 1000,
+     'max_programs': 150,
      'beam_width': branching_factor,
      'debug_prompt_id': debug_prompt_id,
      'batch_size': 10}

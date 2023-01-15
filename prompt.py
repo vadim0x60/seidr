@@ -61,7 +61,7 @@ def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
             i = '\\n'.join(mistake.input_lines)
             o = '\\n'.join(mistake.expected_output_lines)
             if 'GPT ---' in debug_prompt_text:
-                output_lines = '\n'.join([s.decode("utf-8") if type(s)==bytes else s for s in mistake.output_lines])
+                output_lines = '\n'.join([s.decode("utf-8") if type(s) == bytes else s for s in mistake.output_lines])
                 return gpt_assisted_prompt(
                     debug_prompt_text, task_description, mistake.input_lines,
                     mistake.expected_output_lines, output_lines)

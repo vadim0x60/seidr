@@ -14,6 +14,10 @@ def rolling_best(objects, max_score=1, metric=lambda x: x):
         score = metric(object)
         if best_score is None or score > best_score:
             best_score = score
+            try:
+                logging.info(f'\nThe program has improved. Code: \n\n{object.read()}\n\n')
+            except:
+                pass
             yield object
 
         if best_score >= max_score:
@@ -31,6 +35,8 @@ def beam_search(beam, update, metric, beam_width=100):
 
     while True:
         beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
+        if len(beam) == 0:
+            break
         new_beam = []
 
         for parent in beam:
@@ -137,6 +143,7 @@ def develop(task_description, examples=tuple(), tests=tuple(),
     solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_width)
     solutionogen = (program for program, test_runs in solutionogen)
     solutionogen = limit_n(solutionogen)
+
     solutionogen = map(metric_logger(''), solutionogen)
     solutionogen = rolling_best(solutionogen, max_score=1, metric=lambda prog: prog.avg_score)
 
