@@ -12,7 +12,7 @@ token_error_message = 'tokens for the input and instruction but the maximum allo
              retry_if_exception_type(openai.error.APIConnectionError) |
              retry_if_exception_type(openai.error.ServiceUnavailableError),
        wait=wait_random_exponential(max=300),
-       stop=stop_after_attempt(5))
+       stop=stop_after_attempt(50))
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
        wait=wait_random_exponential(max=600))
 def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
@@ -22,6 +22,7 @@ def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
     If instruction is not specified, the code is extended (autocompleted),
     otherwise it's edited according to the instruction.
     """
+    result = []
     try:
         if code_behavior:
             logging.info("Calling GPT for bug summarization")
@@ -58,9 +59,9 @@ def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
                     result = [code]
     except openai.error.InvalidRequestError as e:
         result = []
-
         if token_error_message in e.error.message:
             raise e
+
     return result
 
 
@@ -77,7 +78,7 @@ def explore_gpt(code='', instruction=None, code_behavior=None, batch_size=1, hea
         # We intentionally avoid temperature=0
         # That would lead to a batch of identical code snippets
         # Update temperature but keep it 1 at max
-        temperature = temperature + heat_per_batch
+        temperature += heat_per_batch
 
         try:
             yield from query_gpt(code, instruction, code_behavior,
