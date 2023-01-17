@@ -15,36 +15,33 @@ def query_gpt(code=None, code_behavior=None, instruction=None, n=1, temperature=
     
     If instruction is not specified, the code is extended (autocompleted),
     otherwise it's edited according to the instruction.
-    """
-    try:
-        if code_behavior:
-            response = openai.Completion.create(
-                engine="text-davinci-003",
-                prompt=code_behavior,
+"""
+    if code_behavior:
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=code_behavior,
+            n=n,
+            temperature=temperature
+        )
+        result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
+    elif code:
+        if instruction:
+            response = openai.Edit.create(
+                engine="code-davinci-edit-001",
+                input=code,
                 n=n,
+                instruction=instruction,
                 temperature=temperature
             )
             result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-        elif code:
-            if instruction:
-                response = openai.Edit.create(
-                    engine="code-davinci-edit-001",
-                    input=code,
-                    n=n,
-                    instruction=instruction,
-                    temperature=temperature
-                )
-                result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-            else:
-                response = openai.Completion.create(
-                    engine="code-davinci-001",
-                    prompt=code,
-                    n=n,
-                    temperature=temperature,
-                )
-                result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-    except openai.error.InvalidRequestError:
-        result = []
+        else:
+            response = openai.Completion.create(
+                engine="code-davinci-001",
+                prompt=code,
+                n=n,
+                temperature=temperature,
+            )
+            result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
 
     return result
 
@@ -64,8 +61,11 @@ def explore_gpt(code='', instruction=None, code_behavior=None, batch_size=1, hea
         temperature = temperature + heat_per_batch \
             if 1.0 - temperature >= heat_per_batch else temperature
 
-        yield from query_gpt(code, instruction, code_behavior,
-                             n=batch_size, temperature=temperature)
+        try:
+            yield from query_gpt(code, instruction, code_behavior,
+                                n=batch_size, temperature=temperature)
+        except openai.error.InvalidRequestError:
+            pass
 
 if __name__ == '__main__':
     import itertools
