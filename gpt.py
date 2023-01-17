@@ -27,7 +27,7 @@ def query_gpt(code=None, code_behavior=None, instruction=None, n=1, temperature=
     elif code:
         if instruction:
             response = openai.Edit.create(
-                engine="code-davinci-edit-001",
+                engine="code-davinci-edit-002",
                 input=code,
                 n=n,
                 instruction=instruction,
@@ -36,7 +36,7 @@ def query_gpt(code=None, code_behavior=None, instruction=None, n=1, temperature=
             result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
         else:
             response = openai.Completion.create(
-                engine="code-davinci-001",
+                engine="code-davinci-002",
                 prompt=code,
                 n=n,
                 temperature=temperature,
