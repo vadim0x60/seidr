@@ -42,10 +42,10 @@ def distribute_heat(heat, n, batch_size):
 def draft(task_description, examples, language, batch_size=10, limit_n=None):
     heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
     prompt = initial_prompt(task_description, examples)
-    start = start_coding(prompt, language=language)
 
-    codes = explore_gpt(start, batch_size=batch_size, 
-                               heat_per_batch=heat_per_batch)
+    codes = explore_gpt(instruction=prompt,
+                        batch_size=batch_size, 
+                        heat_per_batch=heat_per_batch)
 
     if limit_n:
         codes = itertools.islice(codes, limit_n)
@@ -55,7 +55,7 @@ def draft(task_description, examples, language, batch_size=10, limit_n=None):
 def debug(code, debug_prompt_text, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
 
-    solutionogen = explore_gpt(code, 
+    solutionogen = explore_gpt(source=code, 
                                instruction=debug_prompt_text,
                                batch_size=batch_size,
                                heat_per_batch=distribute_heat(1, n, batch_size))
