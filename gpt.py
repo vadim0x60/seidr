@@ -1,5 +1,4 @@
 import logging
-
 import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 from tenacity import wait_random_exponential, wait_fixed
@@ -34,7 +33,7 @@ def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
             )
             result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
             logging.info(f"\nBug summary by GPT:\n{result[0]}\n")
-        elif code:
+        elif not code is None:
             if instruction:
                 logging.info(f"Calling Codex-edit to debug code with instruction \n{instruction}")
                 response = openai.Edit.create(
@@ -47,7 +46,6 @@ def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
                 result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
             else:
                 logging.info(f"Calling Codex-completion to create initial program from template")
-                logging.debug(f'template: \n{code}')
                 response = openai.Completion.create(
                     engine="code-davinci-002",
                     prompt=code,
@@ -61,7 +59,6 @@ def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
         result = []
         if token_error_message in e.error.message:
             raise e
-
     return result
 
 

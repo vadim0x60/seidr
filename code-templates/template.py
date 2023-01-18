@@ -7,9 +7,7 @@ import collections
 import itertools
 import queue
 import re
-
 """
 $prompt
 """
-
 if __name__ == '__main__':

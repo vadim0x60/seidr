@@ -9,13 +9,16 @@ from gpt import explore_gpt
 
 def initial_prompt(task_description, examples):
     prompt = task_description
-    prompt += '\n\nFor example: \n'
+    prompt += '\nFor example,'
     for sample_inputs, sample_outputs in examples:
+        prompt += ''
+        prompt += '\ninput:\n'
         for sample_input in sample_inputs:
-            prompt += '> ' + sample_input + '\n'
+            # prompt += '> ' + sample_input + '\n'
+            prompt += sample_input + '\n'
+        prompt += 'output:\n'
         for sample_output in sample_outputs:
-            prompt += sample_output + '\n'
-        prompt += '\n'
+            prompt += sample_output
     return prompt
 
 
@@ -68,7 +71,7 @@ def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
             return debug_prompt_text.format(i=i, o=o)
     else:
         logging.info('\n\nrun.correctness = 1 for all runs, mistake lines are empty\n\n')
-        return f'Fix code'
+        return f'Do not change anything'
 
 
 def start_coding(prompt, language='C++'):

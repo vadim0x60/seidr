@@ -13,7 +13,6 @@ from programlib import Program
 from programlib import language_
 from uuid import uuid4
 
-
 logger = logging.getLogger(__name__)
 
 DATA_PATH = os.environ.get('DATA_PATH') or 'psb2'
@@ -38,14 +37,17 @@ pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
 
 def is_already_solved(solution_path, test_data):
-    with open(solution_path) as f:
-        return Program(f.read()).test(test_data) == 1.0
+    if solution_path.exists():
+        with open(solution_path) as f:
+            return Program(f.read()).test(test_data) == 1.
+    else:
+        return False
 
 
 def run_benchmark(problem, language='C++', branching_factor=100,
                   max_programs=1000, beam_width=100, debug_prompt_id=0,
                   seed=42, valid_examples=100, test_examples=2000,
-                  prompt_examples=5, batch_size=10, mode='execute'):
+                  prompt_examples=5, batch_size=10, mode='execute', log='INFO'):
     """Generate and repair programs in PSB2
 
     Parameters
@@ -87,8 +89,8 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
-
+                        datefmt='%m/%d/%Y %H:%M:%S', level=log.upper())
+    logging.info('logging info')
     baseline = pushgp_success_rates[problem]
 
     run = wandb.init(project='nl2ml-codex', config=locals())
@@ -125,9 +127,9 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                     f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
     filename = language.source.format(name=problem)
-    # if is_already_solved(solutions_dir / filename, test_data):
-    #     logging.info(f'{problem} is already solved, shutting down')
-    #     return
+    if is_already_solved(solutions_dir / filename, test_data):
+        logging.info(f'{problem} is already solved, shutting down')
+        return
 
     def log_program(solution):
         solution.save(solutions_dir / filename)
@@ -175,10 +177,11 @@ experiments_manual_prompt = [
     {'problem': problem,
      'language': language,
      'branching_factor': branching_factor,
-     'max_programs': 150,
+     'max_programs': 1000,
      'beam_width': branching_factor,
      'debug_prompt_id': debug_prompt_id,
-     'batch_size': 10}
+     'batch_size': 10,
+     'log': 'ERROR'}
     for debug_prompt_id in range(11)
     for language in ('C++', 'Python', 'Java')
     for problem in task_descriptions.keys()

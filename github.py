@@ -8,6 +8,7 @@ from tenacity import wait_random_exponential
 import git
 import gitdb
 
+
 @retry(retry=retry_if_exception_type(git.exc.GitCommandError) |
              retry_if_exception_type(git.exc.BadName) |
              retry_if_exception_type(gitdb.exc.BadName),
