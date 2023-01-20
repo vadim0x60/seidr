@@ -3,9 +3,13 @@ from programlib import language_
 from pathlib import Path
 from gpt import explore_gpt
 
-def initial_prompt(task_description, examples):
+def initial_prompt(task_description, examples, language=None):
     prompt = task_description
     prompt += '\n\nFor example: \n'
+
+    if language:
+        prompt += '\nWrite the solution in ' + language
+
     for sample_inputs, sample_outputs in examples:
         for sample_input in sample_inputs:
             prompt += '> ' + sample_input + '\n'

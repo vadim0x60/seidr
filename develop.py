@@ -41,7 +41,7 @@ def distribute_heat(heat, n, batch_size):
 
 def draft(task_description, examples, language, batch_size=10, limit_n=None):
     heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
-    prompt = initial_prompt(task_description, examples)
+    prompt = initial_prompt(task_description, examples, language)
 
     codes = explore_gpt(instruction=prompt,
                         batch_size=batch_size, 
