@@ -28,8 +28,11 @@ pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
 def is_already_solved(solution_path, test_data):
-    with open(solution_path) as f:
-        return Program(f.read()).test(test_data) == 1.0
+    try:
+        with open(solution_path) as f:
+            return Program(f.read()).test(test_data) == 1.0
+    except FileNotFoundError:
+        return False
 
 def run_benchmark(problem, language='C++', branching_factor=100, 
                   max_programs=1000, beam_width=100,
