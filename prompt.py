@@ -8,7 +8,7 @@ def initial_prompt(task_description, examples, language=None):
     prompt += '\n\nFor example: \n'
 
     if language:
-        prompt += '\nWrite the solution in ' + language
+        prompt += '\nWrite the solution in ' + str(language)
 
     for sample_inputs, sample_outputs in examples:
         for sample_input in sample_inputs:
