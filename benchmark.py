@@ -134,7 +134,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
         solution.save(solutions_dir / filename)
         if solutions_repo:
             idx = wandb.run.summary['idx']
-            cmsg = f'solution {idx} of {problem}, {solution.pass_rate} of tests passed'
+            cmsg = f'solution {idx} of {problem}, {solution.pass_rate} of validation tests passed'
             upload_file(solutions_repo, filename, cmsg)
 
     solution = develop(description, prompt_data, valid_data,
