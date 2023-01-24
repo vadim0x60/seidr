@@ -57,7 +57,7 @@ def config_repo(dir, branch):
     try:
         import os
         logging.info('config_repo')
-        repo = ensure_repo(os.environ['GITHUB_REMOTE'], dir, branch=branch)
+        repo = ensure_repo(os.environ['GIT_REMOTE'], dir, branch=branch)
         repo.config_writer().set_value('user', 'name', os.environ['GIT_USER']).release()
         repo.config_writer().set_value('user', 'email', os.environ['GIT_EMAIL']).release()
         repo.config_writer().set_value('pull', 'rebase', False).release()

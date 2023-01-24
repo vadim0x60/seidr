@@ -74,6 +74,8 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, temperature=1
         if token_error_message in e.error.message:
             raise e
 
+    return result
+
 def explore_gpt(source='', instruction=None, modality='code', batch_size=1, heat_per_batch=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
 
