@@ -19,16 +19,11 @@ def pullpush(repo):
     repo.remotes.origin.push()
 
 
-@retry(retry=retry_if_exception_type(git.exc.GitCommandError) |
-             retry_if_exception_type(git.exc.BadName) |
-             retry_if_exception_type(gitdb.exc.BadName),
-       wait=wait_random_exponential(),
-       stop=stop_after_attempt(50))
 def upload_file(repo, filename, message=None):
     if not message:
         message = f'added {filename}'
 
-    repo.remotes.origin.pull()
+    pullpush(repo)
     repo.index.add(filename)
     repo.index.commit(message)
     pullpush(repo)

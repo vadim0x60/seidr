@@ -103,7 +103,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     solutions_dir = Path('solutions') / str(uuid4())
 
     # if git env variables are set, this will set up a git repo
-    solutions_repo = config_repo(solutions_dir, branch=f'bf{branching_factor}_promptid{debug_prompt_id}_{problem}')
+    solutions_repo = config_repo(solutions_dir, branch=f'bf{branching_factor}_promptid{debug_prompt_id}')
     # if git env variables are not set, this will just create the directory
     os.makedirs(solutions_dir, exist_ok=True)
 
@@ -153,7 +153,6 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                'test_pass_rate': solution.pass_rate})
     run.finish()
 
-
 def get_task_id():
     try:
         task_id = os.environ.get('TASK_ID') or int(os.environ.get('SLURM_ARRAY_TASK_ID')) - 1
@@ -177,11 +176,11 @@ experiments_manual_prompt = [
     {'problem': problem,
      'language': language,
      'branching_factor': branching_factor,
-     'max_programs': 1000,
+     'max_programs': 5,
      'beam_width': branching_factor,
      'debug_prompt_id': debug_prompt_id,
      'batch_size': 10,
-     'log': 'ERROR'}
+     'log': 'INFO'}
     for debug_prompt_id in range(11)
     for language in ('C++', 'Python', 'Java')
     for problem in task_descriptions.keys()
