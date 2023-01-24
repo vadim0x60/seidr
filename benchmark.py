@@ -137,6 +137,12 @@ def run_benchmark(problem, language='C++', branching_factor=100,
             cmsg = f'solution {idx} of {problem}, {solution.pass_rate} of validation tests passed'
             upload_file(solutions_repo, filename, cmsg)
 
+    call_count = 0
+    def log_gpt_call(**kwargs):
+        nonlocal call_count
+        wandb.log({'gpt_calls': call_count})
+        call_count += 1
+
     solution = develop(description, prompt_data, valid_data,
                        debug_prompt_text=debug_prompt_text,
                        language=language,
@@ -145,6 +151,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                        max_programs=max_programs,
                        log_metrics=wandb.log,
                        log_program=log_program,
+                       log_gpt_call=log_gpt_call,
                        batch_size=min(batch_size, branching_factor))
 
     solution.test(test_data)

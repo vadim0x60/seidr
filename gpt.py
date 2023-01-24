@@ -79,7 +79,7 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, t=1.0):
     return result
 
 def explore_gpt(source='', instruction=None, modality='code', batch_size=1, 
-                t=0.0, delta_t=0.2):
+                t=0.0, delta_t=0.2, log_gpt_call=lambda **kwargs: None):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
 
     # Beam search would be preferable, but it's computationally costly
@@ -87,6 +87,8 @@ def explore_gpt(source='', instruction=None, modality='code', batch_size=1,
 
     while t <= 1:
         try:
+            log_gpt_call(source=source, instruction=instruction, modality=modality,
+                         n=batch_size, t=t)
             yield from query_gpt(source=source, instruction=instruction, modality=modality,
                                  n=batch_size, t=t)
         except openai.error.InvalidRequestError as e:

@@ -60,7 +60,8 @@ def distribute_heat(heat, n, batch_size):
     return t, delta_t
 
 
-def draft(task_description, examples, language, batch_size=10, limit_n=None):
+def draft(task_description, examples, language, batch_size=10, limit_n=None, 
+          log_gpt_call=print):
     t, delta_t = distribute_heat(1, limit_n, batch_size)
         
     prompt = initial_prompt(task_description, examples)
@@ -68,7 +69,8 @@ def draft(task_description, examples, language, batch_size=10, limit_n=None):
     codes = explore_gpt(source=start, instruction=task_description, modality='code',
                         batch_size=batch_size, 
                         t=t, 
-                        delta_t=delta_t)
+                        delta_t=delta_t,
+                        log_gpt_call=log_gpt_call)
 
     if limit_n:
         codes = itertools.islice(codes, limit_n)
@@ -76,7 +78,7 @@ def draft(task_description, examples, language, batch_size=10, limit_n=None):
     return codes
 
 
-def debug(code, debug_prompt_text, n, batch_size=10):
+def debug(code, debug_prompt_text, n, batch_size=10, log_gpt_call=print):
     """Generate n attempts to fix program so that it passes tests"""
     t, delta_t = distribute_heat(1, n, batch_size)
 
@@ -84,7 +86,8 @@ def debug(code, debug_prompt_text, n, batch_size=10):
                           instruction=debug_prompt_text,
                           modality='code',
                           batch_size=batch_size,
-                          t=t, delta_t=delta_t)
+                          t=t, delta_t=delta_t,
+                          log_gpt_call=log_gpt_call)
     return itertools.islice(codegen, n)
 
 def test(code, tests, language='C++'):
@@ -100,6 +103,7 @@ def develop(task_description, examples=tuple(), tests=tuple(),
             max_programs=None,
             log_metrics=print,
             log_program=lambda p: print(p.read()),
+            log_gpt_call=print,
             batch_size=10):
     """
     Write a program in language that solves task and passes tests.
@@ -116,7 +120,7 @@ def develop(task_description, examples=tuple(), tests=tuple(),
     more tests than the previous one. The last program in the generator
     passes all tests.
     """
-    codes = draft(task_description, examples, language, batch_size=batch_size, limit_n=beam_width)
+    codes = draft(task_description, examples, language, batch_size=batch_size, limit_n=beam_width, log_gpt_call=log_gpt_call)
 
     beam = (test(code, tests, language) for code in codes)
 
@@ -126,7 +130,8 @@ def develop(task_description, examples=tuple(), tests=tuple(),
         dp = write_debug_prompt(test_runs, debug_prompt_text, task_description)
 
         for code in debug(program.read(), dp,
-                          n=branching_factor, batch_size=batch_size):
+                          n=branching_factor, batch_size=batch_size,
+                          log_gpt_call=log_gpt_call):
             yield test(code, tests, language)
 
     def metric_logger(prefix):
