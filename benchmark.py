@@ -154,6 +154,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                        log_gpt_call=log_gpt_call,
                        batch_size=min(batch_size, branching_factor))
 
+    logging.info('Development done. Testing...')
     solution.test(test_data)
     wandb.log({'test_avg_score': solution.avg_score,
                'test_pass_rate': solution.pass_rate})
