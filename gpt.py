@@ -15,13 +15,15 @@ token_error_message = 'tokens for the input and instruction but the maximum allo
        stop=stop_after_attempt(50))
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
        wait=wait_random_exponential(max=600))
-def query_gpt(source=None, instruction=None, modality='code', n=1, temperature=1.0):
+def query_gpt(source=None, instruction=None, modality='code', n=1, t=1.0):
     """
     Get code snippets from GPT-3.
 
     If instruction is not specified, the code is extended (autocompleted),
     otherwise it's edited according to the instruction.
     """
+    logging.info(f"Querying GPT with temperature {t} and {n} snippets.")
+
     result = []
     try:
         if instruction:
@@ -40,7 +42,7 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, temperature=1
                 input=source,
                 n=n,
                 instruction=instruction,
-                temperature=temperature
+                temperature=t
             )
             result = [choice['text'] for choice in response["choices"]
                       if "text" in choice.keys()]
@@ -58,7 +60,7 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, temperature=1
                 engine=engine,
                 prompt=source,
                 n=n,
-                temperature=temperature
+                temperature=t
             )
 
             if modality == 'text':
@@ -76,30 +78,25 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, temperature=1
 
     return result
 
-def explore_gpt(source='', instruction=None, modality='code', batch_size=1, heat_per_batch=0.2):
+def explore_gpt(source='', instruction=None, modality='code', batch_size=1, 
+                t=0.0, delta_t=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
 
     # Beam search would be preferable, but it's computationally costly
     # (for OpenAI, which is why they don't offer it)
 
-    # We fix moderate temperature to get sufficiently varied code snippets from the model
-    temperature = 0.0
-
-    while temperature <= 1:
-        # We intentionally avoid temperature=0
-        # That would lead to a batch of identical code snippets
-        # Update temperature but keep it 1 at max
-        temperature += heat_per_batch
-
+    while t <= 1:
         try:
             yield from query_gpt(source=source, instruction=instruction, modality=modality,
-                                 n=batch_size, temperature=temperature)
+                                 n=batch_size, t=t)
         except openai.error.InvalidRequestError as e:
             logging.error(traceback.format_exc())
 
             if token_error_message in e.error.message:
                 logging.info('Stopping iterations due to token limit error')
                 break
+
+        t += delta_t
 
 if __name__ == '__main__':
     import itertools

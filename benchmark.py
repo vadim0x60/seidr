@@ -46,7 +46,7 @@ def is_already_solved(solution_path, test_data):
 def run_benchmark(problem, language='C++', branching_factor=100,
                   max_programs=1000, beam_width=100, debug_prompt_id=0,
                   seed=42, valid_examples=100, test_examples=2000,
-                  prompt_examples=5, batch_size=10, mode='execute', log='ERROR'):
+                  prompt_examples=5, batch_size=10, mode='execute', log='INFO'):
     """Generate and repair programs in PSB2
 
     Parameters

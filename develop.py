@@ -46,17 +46,29 @@ def beam_search(beam, update, metric, beam_width=100):
 
 
 def distribute_heat(heat, n, batch_size):
-    batch_count = n // batch_size + 1
-    heat_per_batch = heat / batch_count
-    return heat_per_batch
+    if n == 1:
+        t = 0
+        delta_t = 0.2  
+    else:
+        # We intentionally avoid temperature=0
+        # That would lead to a batch of identical code snippets
+        # Update temperature but keep it 1 at max
+        batch_count = n // batch_size + 1
+        delta_t = heat / batch_count
+        t = delta_t
+
+    return t, delta_t
 
 
 def draft(task_description, examples, language, batch_size=10, limit_n=None):
-    heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
+    t, delta_t = distribute_heat(1, limit_n, batch_size)
+        
     prompt = initial_prompt(task_description, examples)
     start = start_coding(prompt, language=language)
     codes = explore_gpt(source=start, instruction=task_description, modality='code',
-                        batch_size=batch_size, heat_per_batch=heat_per_batch)
+                        batch_size=batch_size, 
+                        t=t, 
+                        delta_t=delta_t)
 
     if limit_n:
         codes = itertools.islice(codes, limit_n)
@@ -66,11 +78,13 @@ def draft(task_description, examples, language, batch_size=10, limit_n=None):
 
 def debug(code, debug_prompt_text, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
+    t, delta_t = distribute_heat(1, n, batch_size)
+
     codegen = explore_gpt(source=code,
                           instruction=debug_prompt_text,
                           modality='code',
                           batch_size=batch_size,
-                          heat_per_batch=distribute_heat(1, n, batch_size))
+                          t=t, delta_t=delta_t)
     return itertools.islice(codegen, n)
 
 def test(code, tests, language='C++'):
