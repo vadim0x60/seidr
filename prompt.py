@@ -14,7 +14,6 @@ def initial_prompt(task_description, examples):
         prompt += ''
         prompt += '\ninput:\n'
         for sample_input in sample_inputs:
-            # prompt += '> ' + sample_input + '\n'
             prompt += sample_input + '\n'
         prompt += 'output:\n'
         for sample_output in sample_outputs:
@@ -36,9 +35,9 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
         a=actual_output)
 
     # Get GPT summary of a bug
-    # bug_description = query_gpt(code='', code_behaviour=code_behaviour, n=1, temperature=0.0)[0]
-    bug_description = next(explore_gpt(code='', code_behavior=code_behavior, batch_size=1, heat_per_batch=0.0))
-
+    logging.info(f'\nCode behavior:\n{code_behavior}')
+    bug_description = next(explore_gpt(source='', instruction=code_behavior,
+                                       modality='text', batch_size=1, heat_per_batch=0.0))
     # Form debug prompt using template
     debug_prompt_text = debug_prompt_text.format(
         s=bug_description,
@@ -47,10 +46,6 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
         o=expected_output,
         a=actual_output)
     return debug_prompt_text
-
-
-def ignore_filename_in_compiler_output(lines):
-    return [s for s in lines if not 'File "' in s and s[-3:] != '.py' and not '.cpp' in s]
 
 
 def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):

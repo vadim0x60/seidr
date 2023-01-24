@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import random
 import pandas as pd
 import psb2
@@ -42,6 +43,12 @@ def is_already_solved(solution_path, test_data):
             return Program(f.read()).test(test_data) == 1.
     else:
         return False
+
+def to_camel_case(s):
+    """Converts input string to camel case"""
+    temp = re.split(' |_|-', s)
+    # temp = s.split('-')
+    return temp[0] + ''.join(ele.title() for ele in temp[1:])
 
 
 def run_benchmark(problem, language='C++', branching_factor=100,
@@ -98,7 +105,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     run.config['slurm_array_job_id'] = os.environ.get('SLURM_ARRAY_TASK_ID')
     run.config['slurm_job_id'] = os.environ.get('SLURM_JOB_ID')
 
-    language = language_(language)
+    lang = language_(language)
     os.makedirs('solutions', exist_ok=True)
     solutions_dir = Path('solutions') / str(uuid4())
 
@@ -126,7 +133,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                 with open(solutions_dir / filename, 'w') as f:
                     f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
-    filename = language.source.format(name=problem)
+    filename = lang.source.format(name=(to_camel_case(problem) if language == 'Java' else problem))
     if is_already_solved(solutions_dir / filename, test_data):
         logging.info(f'{problem} is already solved, shutting down')
         return
@@ -140,7 +147,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
 
     solution = develop(description, prompt_data, valid_data,
                        debug_prompt_text=debug_prompt_text,
-                       language=language,
+                       language=lang,
                        beam_width=beam_width,
                        branching_factor=branching_factor,
                        max_programs=max_programs,

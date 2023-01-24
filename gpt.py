@@ -14,55 +14,55 @@ token_error_message = 'tokens for the input and instruction but the maximum allo
        stop=stop_after_attempt(50))
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
        wait=wait_random_exponential(max=600))
-def query_gpt(code, instruction=None, code_behavior=None, n=1, temperature=1.0):
+def query_gpt(source=None, instruction=None, modality='code', n=1, temperature=1.0):
     """
-    Get code snippets from GPT-3. 
-    
+    Get code snippets from GPT-3.
+
     If instruction is not specified, the code is extended (autocompleted),
     otherwise it's edited according to the instruction.
     """
     result = []
     try:
-        if code_behavior:
+        if modality == 'text':
+            engine = "text-davinci-003"
+
             logging.info("Calling GPT for bug summarization")
             response = openai.Completion.create(
-                engine="text-davinci-003",
-                prompt=code_behavior,
+                engine=engine,
+                prompt=instruction,
                 n=n,
                 temperature=temperature
             )
-            result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
+
+        elif modality == 'code':
+            engine = "code-davinci-edit-001"
+
+            logging.info(f"Calling Codex-edit to debug code with instruction \n{instruction}")
+            response = openai.Edit.create(
+                engine=engine,
+                input=source,
+                n=n,
+                instruction=instruction,
+                temperature=temperature
+            )
+        else:
+            raise ValueError(f'Unknown modality: {modality}')
+
+        result = [choice['text'] for choice in response["choices"]
+                if "text" in choice.keys()]
+
+        if modality == 'text':
             logging.info(f"\nBug summary by GPT:\n{result[0]}\n")
-        elif not code is None:
-            if instruction:
-                logging.info(f"Calling Codex-edit to debug code with instruction \n{instruction}")
-                response = openai.Edit.create(
-                    engine="code-davinci-edit-001",
-                    input=code,
-                    n=n,
-                    instruction=instruction,
-                    temperature=temperature
-                )
-                result = [choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-            else:
-                logging.info(f"Calling Codex-completion to create initial program from template")
-                response = openai.Completion.create(
-                    engine="code-davinci-002",
-                    prompt=code,
-                    n=n,
-                    temperature=temperature,
-                )
-                result = [code + '\n' + choice['text'] for choice in response["choices"] if "text" in choice.keys()]
-                if len(result) == 0:
-                    result = [code]
+
     except openai.error.InvalidRequestError as e:
         result = []
         if token_error_message in e.error.message:
             raise e
+
     return result
 
 
-def explore_gpt(code='', instruction=None, code_behavior=None, batch_size=1, heat_per_batch=0.2):
+def explore_gpt(source='', instruction=None, modality='code', batch_size=1, heat_per_batch=0.2):
     """Get many code snippets from GPT-3 ordered from most to least likely"""
 
     # Beam search would be preferable, but it's computationally costly
@@ -78,7 +78,7 @@ def explore_gpt(code='', instruction=None, code_behavior=None, batch_size=1, hea
         temperature += heat_per_batch
 
         try:
-            yield from query_gpt(code, instruction, code_behavior,
+            yield from query_gpt(source=source, instruction=instruction, modality=modality,
                                  n=batch_size, temperature=temperature)
         except openai.error.InvalidRequestError as e:
             if token_error_message in e.error.message:
