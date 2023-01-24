@@ -36,7 +36,7 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
 
     # Get GPT summary of a bug
     logging.info(f'\nCode behavior:\n{code_behavior}')
-    bug_description = next(explore_gpt(source='', instruction=code_behavior,
+    bug_description = next(explore_gpt(source=code_behavior, instruction=None,
                                        modality='text', batch_size=1, heat_per_batch=0.0))
     # Form debug prompt using template
     debug_prompt_text = debug_prompt_text.format(

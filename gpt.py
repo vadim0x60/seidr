@@ -23,21 +23,17 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, temperature=1
     """
     result = []
     try:
-        if modality == 'text':
-            engine = "text-davinci-003"
+        if instruction:
+            if modality == 'text':
+                engine = "text-davinci-edit-001"
+                logging.info("Calling GPT for text editing")
 
-            logging.info("Calling GPT for bug summarization")
-            response = openai.Completion.create(
-                engine=engine,
-                prompt=instruction,
-                n=n,
-                temperature=temperature
-            )
+            elif modality == 'code':
+                engine = "code-davinci-edit-001"
+                logging.info("Calling GPT for code editing")
+            else:
+                raise ValueError(f'Unknown modality: {modality}')
 
-        elif modality == 'code':
-            engine = "code-davinci-edit-001"
-
-            logging.info(f"Calling Codex-edit to debug code with instruction \n{instruction}")
             response = openai.Edit.create(
                 engine=engine,
                 input=source,
@@ -45,14 +41,32 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, temperature=1
                 instruction=instruction,
                 temperature=temperature
             )
+            result = [choice['text'] for choice in response["choices"]
+                      if "text" in choice.keys()]
         else:
-            raise ValueError(f'Unknown modality: {modality}')
+            if modality == 'text':
+                engine = "text-davinci-003"
+                logging.info("Calling GPT for text completion")
+            elif modality == 'code':
+                engine = "code-davinci-002"
+                logging.info("Calling GPT for code completion")
+            else:
+                raise ValueError(f'Unknown modality: {modality}')
 
-        result = [choice['text'] for choice in response["choices"]
-                if "text" in choice.keys()]
+            response = openai.Completion.create(
+                engine=engine,
+                prompt=source,
+                n=n,
+                temperature=temperature
+            )
 
-        if modality == 'text':
-            logging.info(f"\nBug summary by GPT:\n{result[0]}\n")
+            if modality == 'text':
+                result = [choice['text'] for choice in response["choices"]
+                          if "text" in choice.keys()]
+                logging.info(f"\nBug summary by GPT:\n{result[0]}\n")
+            else:
+                result = [source + '\n' + choice['text'] for choice in response["choices"]
+                          if "text" in choice.keys()]
 
     except openai.error.InvalidRequestError as e:
         result = []

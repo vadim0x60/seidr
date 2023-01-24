@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import random
 import pandas as pd
 import psb2
@@ -38,23 +37,17 @@ pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
 
 def is_already_solved(solution_path, test_data):
-    if solution_path.exists():
+    try:
         with open(solution_path) as f:
-            return Program(f.read()).test(test_data) == 1.
-    else:
+            return Program(f.read()).test(test_data) == 1.0
+    except FileNotFoundError:
         return False
-
-def to_camel_case(s):
-    """Converts input string to camel case"""
-    temp = re.split(' |_|-', s)
-    # temp = s.split('-')
-    return temp[0] + ''.join(ele.title() for ele in temp[1:])
 
 
 def run_benchmark(problem, language='C++', branching_factor=100,
                   max_programs=1000, beam_width=100, debug_prompt_id=0,
                   seed=42, valid_examples=100, test_examples=2000,
-                  prompt_examples=5, batch_size=10, mode='execute', log='INFO'):
+                  prompt_examples=5, batch_size=10, mode='execute', log='ERROR'):
     """Generate and repair programs in PSB2
 
     Parameters
@@ -105,7 +98,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     run.config['slurm_array_job_id'] = os.environ.get('SLURM_ARRAY_TASK_ID')
     run.config['slurm_job_id'] = os.environ.get('SLURM_JOB_ID')
 
-    lang = language_(language)
+    language = language_(language)
     os.makedirs('solutions', exist_ok=True)
     solutions_dir = Path('solutions') / str(uuid4())
 
@@ -133,7 +126,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                 with open(solutions_dir / filename, 'w') as f:
                     f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
-    filename = lang.source.format(name=(to_camel_case(problem) if language == 'Java' else problem))
+    filename = language.source.format(name=problem)
     if is_already_solved(solutions_dir / filename, test_data):
         logging.info(f'{problem} is already solved, shutting down')
         return
@@ -147,7 +140,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
 
     solution = develop(description, prompt_data, valid_data,
                        debug_prompt_text=debug_prompt_text,
-                       language=lang,
+                       language=language,
                        beam_width=beam_width,
                        branching_factor=branching_factor,
                        max_programs=max_programs,
@@ -162,44 +155,45 @@ def run_benchmark(problem, language='C++', branching_factor=100,
 
 def get_task_id():
     try:
-        task_id = os.environ.get('TASK_ID') or int(os.environ.get('SLURM_ARRAY_TASK_ID')) - 1
+        task_id = int(os.environ.get('TASK_ID') or os.environ.get('SLURM_ARRAY_TASK_ID'))
+        task_id -= 1
     except TypeError:
         task_id = None
     return task_id
 
 
-experiments = [
+bf_experiments = [
     {'problem': problem, 
      'language': language, 
      'branching_factor': branching_factor, 
      'max_programs': 1000, 
      'beam_width': branching_factor}
     for problem in task_descriptions.keys()
-    for language in ('C++', 'Python', 'Java')
+    for language in ('C++', 'Python')
     for branching_factor in (1, 10, 100, 1000)
 ]
 
-experiments_manual_prompt = [
+prompt_experiments = [
     {'problem': problem,
      'language': language,
      'branching_factor': branching_factor,
      'max_programs': 5,
      'beam_width': branching_factor,
      'debug_prompt_id': debug_prompt_id,
-     'batch_size': 10,
-     'log': 'INFO'}
+     'batch_size': 10}
     for debug_prompt_id in range(11)
-    for language in ('C++', 'Python', 'Java')
+    for language in ('C++', 'Python')
     for problem in task_descriptions.keys()
     for branching_factor in [1]
 ]
 
+experiments = bf_experiments + prompt_experiments
 
 if __name__ == '__main__':
     task_id = get_task_id()
     logger.info('Start')
     if task_id is not None:
-        run_benchmark(**experiments_manual_prompt[int(task_id)])
+        run_benchmark(**experiments[task_id])
     else:
         Fire(run_benchmark)
     logger.info('Finish')
