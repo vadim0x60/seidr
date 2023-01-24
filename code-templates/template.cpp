@@ -9,11 +9,8 @@
 #include <set>
 #include <stack>
 #include <climits>
-
 using namespace std;
-
 /*
 $prompt
 */
-
 int main() {

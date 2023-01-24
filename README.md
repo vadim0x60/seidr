@@ -26,7 +26,7 @@ The experiments reported in [the blog post](https://vadim.me/posts/unreasonable)
 2. Go [here](https://github.com/settings/tokens?type=beta) and generate an access $token
 3. Set `GITHUB_USER` to "Bot" or whatever the name of the committer shall be
 4. Set `GITHUB_EMAIL` to $email
-5. Set `GITHUB_REPO` to https://$username:$token@github.com/$repo
+5. Set `GITHUB_REMOTE` to https://$username:$token@github.com/$repo
 
 Don't be fooled by the variable names, you can of course use a non-github git hosting.
 

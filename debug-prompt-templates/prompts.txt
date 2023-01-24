@@ -1,13 +1,11 @@
 0	Make sure that {i} -> {o}
-1	Make sure the code retuns {o} for input {i}
-2	Ensure that input {i} yeilds output {o}
-3	Return {o} for input {i}
-4	Input: {i}, output: {o}
-5	Test pair: ({i}, {o})
-6	Modify code to get {o} from {i}
-7	Code must correspond instructions in comments and {i} must yield {o}
-8	Program takes {i} as input and returns {o} as output
-9	See comments in code and return {o} for input {i}
-10	GPT --- The code should solve the following problem: {t}\nThe code must return {o} for input {i}, \nbut it returns \n{a} \nObviously, the error is that  --- Fix {s}
-11	GPT --- The code should solve the following problem: {t}\nThe code must return {o} for input {i}, \nbut it returns \n{a} \nThe error is that  --- Fix {s}
-12	GPT --- Problem description: {t}\nThe code must return {o} for input {i}, \nbut it returns \n{a} \nIt is clear the error is that  --- Fix {s}
+1	Make sure the code returns {o} for input {i}
+2	Ensure that input {i} yields output {o}
+3	Modify code to get {o} from {i}
+4	Code must correspond instructions in comments and {i} must yield {o}
+5	See comments in code and return {o} for input {i}
+6	GPT --- The code should solve the following problem: {t}. The code must return {o} for input {i} but it returns {a}. Obviously, the error is that  --- Fix {s}
+7	GPT --- The code should solve the following problem: {t}. The code must return {o} for input {i} but it returns {a}. The error is that  --- Fix {s}
+8	GPT --- Problem description: {t}. The code must return {o} for input {i}, but it returns {a}. It is clear the error is that  --- Fix {s}
+9	GPT --- There is clearly a bug in code, because the code returns {a} for input {i} but output {o} is expected. The bug is that  --- Fix {s}
+10	GPT --- There is clearly a bug in code, because the code returns {a} for input {i} but output {o} is expected. The bug is that  --- Fix {s} and modify the code to return {o} for input {i}

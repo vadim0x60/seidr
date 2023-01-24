@@ -1,20 +1,28 @@
-from gpt import explore_gpt
-from prompt import initial_prompt, write_debug_prompt, start_coding
-import functools
 import itertools
+import logging
+
 from programlib import Program
 
-def rolling_best(objects, max_score=1, metric = lambda x: x):
+from gpt import explore_gpt
+from prompt import initial_prompt, write_debug_prompt, start_coding
+
+
+def rolling_best(objects, max_score=1, metric=lambda x: x):
     best_score = None
 
     for object in objects:
         score = metric(object)
         if best_score is None or score > best_score:
             best_score = score
+            try:
+                logging.info(f'\nThe program has improved. Code: \n\n{object.read()}\n\n')
+            except:
+                pass
             yield object
 
         if best_score >= max_score:
             break
+
 
 def beam_search(beam, update, metric, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
@@ -27,6 +35,8 @@ def beam_search(beam, update, metric, beam_width=100):
 
     while True:
         beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
+        if len(beam) == 0:
+            break
         new_beam = []
 
         for parent in beam:
@@ -34,39 +44,42 @@ def beam_search(beam, update, metric, beam_width=100):
                 yield child
                 new_beam.append(child)
 
+
 def distribute_heat(heat, n, batch_size):
     batch_count = n // batch_size + 1
     heat_per_batch = heat / batch_count
     return heat_per_batch
 
+
 def draft(task_description, examples, language, batch_size=10, limit_n=None):
     heat_per_batch = distribute_heat(1, limit_n, batch_size) if limit_n else 0.2
-    prompt = initial_prompt(task_description, examples, language)
-
-    codes = explore_gpt(instruction=prompt,
-                        batch_size=batch_size, 
-                        heat_per_batch=heat_per_batch)
+    prompt = initial_prompt(task_description, examples)
+    start = start_coding(prompt, language=language)
+    codes = explore_gpt(source=start, instruction=task_description, modality='code',
+                        batch_size=batch_size, heat_per_batch=heat_per_batch)
 
     if limit_n:
         codes = itertools.islice(codes, limit_n)
 
     return codes
 
+
 def debug(code, debug_prompt_text, n, batch_size=10):
     """Generate n attempts to fix program so that it passes tests"""
-
-    solutionogen = explore_gpt(source=code, 
-                               instruction=debug_prompt_text,
-                               batch_size=batch_size,
-                               heat_per_batch=distribute_heat(1, n, batch_size))
-    return itertools.islice(solutionogen, n)
+    codegen = explore_gpt(source=code,
+                          instruction=debug_prompt_text,
+                          modality='code',
+                          batch_size=batch_size,
+                          heat_per_batch=distribute_heat(1, n, batch_size))
+    return itertools.islice(codegen, n)
 
 def test(code, tests, language='C++'):
     program = Program(code, language=language)
     return program, program.test(tests)
 
+
 def develop(task_description, examples=tuple(), tests=tuple(),
-            debug_prompt_template='Make sure {i} -> {o}',
+            debug_prompt_text='Make sure {i} -> {o}',
             language='C++',
             beam_width=100,
             branching_factor=10,
@@ -89,13 +102,14 @@ def develop(task_description, examples=tuple(), tests=tuple(),
     more tests than the previous one. The last program in the generator
     passes all tests.
     """
-    codes = draft(task_description, examples, language, 
-                  batch_size=batch_size, limit_n=beam_width)    
+    codes = draft(task_description, examples, language, batch_size=batch_size, limit_n=beam_width)
+
     beam = (test(code, tests, language) for code in codes)
 
     def debug_and_test(candidate):
+        logging.debug(f'Running debug_and_test')
         program, test_runs = candidate
-        dp = write_debug_prompt(test_runs, debug_prompt_template, task_description)
+        dp = write_debug_prompt(test_runs, debug_prompt_text, task_description)
 
         for code in debug(program.read(), dp,
                           n=branching_factor, batch_size=batch_size):
@@ -109,6 +123,7 @@ def develop(task_description, examples=tuple(), tests=tuple(),
             })
 
             return program
+
         return log
 
     def limit_n(programs):
@@ -116,18 +131,20 @@ def develop(task_description, examples=tuple(), tests=tuple(),
             log_metrics({
                 'idx': idx
             })
-
+            logging.info(f'\nProgram idx: {idx}\n')
+            if int(idx) % 10 == 0:
+                logging.info(f'\nProgram code:\n{program.read()}')
             yield program
 
             if max_programs and idx >= max_programs:
                 break
-
     solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_width)
     solutionogen = (program for program, test_runs in solutionogen)
     solutionogen = limit_n(solutionogen)
+
     solutionogen = map(metric_logger(''), solutionogen)
     solutionogen = rolling_best(solutionogen, max_score=1, metric=lambda prog: prog.avg_score)
-    
+
     solution = None
 
     for solution in solutionogen:
@@ -135,6 +152,7 @@ def develop(task_description, examples=tuple(), tests=tuple(),
         log_program(solution)
 
     return solution
+
 
 if __name__ == '__main__':
     task = 'A program that outputs "Hello World"'

@@ -1,5 +1,33 @@
 .vscode
 __pycache__
+.config*
+
+# Env
+venv/
+
+# Idea
+.idea/
+
+# Mac
+*.DS_Store
+
+# Data
+data/
+
+# Test notebooks
+notebooks/
+.ipynb_checkpoints/
+
+# Notes
+notes/
+
+# Logs
+*.log
+logs
 wandb
 solutions
-.config
+
+# Slurm
+scripts/
+create_scripts.py
+
