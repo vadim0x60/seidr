@@ -11,7 +11,7 @@ token_error_message = 'tokens for the input and instruction but the maximum allo
 @retry(retry=retry_if_exception_type(openai.error.APIError) |
              retry_if_exception_type(openai.error.APIConnectionError) |
              retry_if_exception_type(openai.error.ServiceUnavailableError) |
-             retry_if_exception_type(openai.error.TimeoutError),
+             retry_if_exception_type(openai.error.Timeout),
        wait=wait_random_exponential(max=300),
        stop=stop_after_attempt(50))
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
