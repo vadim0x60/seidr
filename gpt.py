@@ -1,7 +1,7 @@
 import logging
 import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
-from tenacity import wait_random_exponential
+from tenacity import wait_random_exponential, before_sleep_log
 import traceback
 
 token_error_message = 'tokens for the input and instruction but the maximum allowed is 3000. ' \
@@ -10,12 +10,13 @@ token_error_message = 'tokens for the input and instruction but the maximum allo
 
 @retry(retry=retry_if_exception_type(openai.error.APIError) |
              retry_if_exception_type(openai.error.APIConnectionError) |
-             retry_if_exception_type(openai.error.ServiceUnavailableError) |
-             retry_if_exception_type(openai.error.Timeout),
+             retry_if_exception_type(openai.error.ServiceUnavailableError),
        wait=wait_random_exponential(max=300),
-       stop=stop_after_attempt(50))
+       stop=stop_after_attempt(10),
+       before_sleep=before_sleep_log(logging.getLogger(), logging.ERROR))
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
-       wait=wait_random_exponential(max=600))
+       wait=wait_random_exponential(max=600),
+       before_sleep=before_sleep_log(logging.getLogger(), logging.INFO))
 def query_gpt(source=None, instruction=None, modality='code', n=1, t=1.0):
     """
     Get code snippets from GPT-3.
@@ -92,7 +93,7 @@ def explore_gpt(source='', instruction=None, modality='code', batch_size=1,
                          n=batch_size, t=t)
             yield from query_gpt(source=source, instruction=instruction, modality=modality,
                                  n=batch_size, t=t)
-        except openai.error.InvalidRequestError as e:
+        except (openai.error.InvalidRequestError, openai.error.Timeout) as e:
             logging.error(traceback.format_exc())
 
             if token_error_message in e.error.message:
