@@ -184,7 +184,7 @@ prompt_experiments = [
     {'problem': problem,
      'language': language,
      'branching_factor': branching_factor,
-     'max_programs': 5,
+     'max_programs': 1000,
      'beam_width': branching_factor,
      'debug_prompt_id': debug_prompt_id,
      'batch_size': 10}
