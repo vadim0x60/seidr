@@ -199,8 +199,12 @@ experiments = bf_experiments + prompt_experiments
 if __name__ == '__main__':
     task_id = get_task_id()
     logger.info('Start')
-    if task_id is not None:
-        run_benchmark(**experiments[task_id])
-    else:
-        Fire(run_benchmark)
+    try:
+        if task_id is not None:
+            run_benchmark(**experiments[task_id])
+        else:
+            Fire(run_benchmark)
+    except:
+        logging.error(traceback.format_exc())
+        raise
     logger.info('Finish')
