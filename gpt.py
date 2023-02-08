@@ -93,7 +93,10 @@ def explore_gpt(source='', instruction=None, modality='code', batch_size=1,
                          n=batch_size, t=t)
             yield from query_gpt(source=source, instruction=instruction, modality=modality,
                                  n=batch_size, t=t)
-        except (openai.error.InvalidRequestError, openai.error.Timeout) as e:
+        except openai.error.Timeout as e:
+            logging.info(traceback.format_exc())
+            pass
+        except openai.error.InvalidRequestError as e:
             logging.error(traceback.format_exc())
 
             if token_error_message in e.error.message:
