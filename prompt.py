@@ -15,11 +15,10 @@ def initial_prompt(task_description, examples):
         prompt += '\ninput:\n'
         for sample_input in sample_inputs:
             prompt += sample_input + '\n'
-        prompt += 'output:\n'
+        prompt += 'output:'
         for sample_output in sample_outputs:
-            prompt += sample_output
+            prompt += '\n' + sample_output
     return prompt
-
 
 def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_output, actual_output):
     """
