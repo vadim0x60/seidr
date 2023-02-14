@@ -12,10 +12,13 @@ token_error_message = 'tokens for the input and instruction but the maximum allo
              retry_if_exception_type(openai.error.APIConnectionError) |
              retry_if_exception_type(openai.error.ServiceUnavailableError),
        wait=wait_random_exponential(max=300),
-       stop=stop_after_attempt(10),
+       stop=stop_after_attempt(5),
        before_sleep=before_sleep_log(logging.getLogger(), logging.ERROR))
 @retry(retry=retry_if_exception_type(openai.error.RateLimitError),
        wait=wait_random_exponential(max=600),
+       # We want the experiment to crash in this situation
+       # We've launched too many
+       stop=stop_after_attempt(5),
        before_sleep=before_sleep_log(logging.getLogger(), logging.INFO))
 def query_gpt(source=None, instruction=None, modality='code', n=1, t=1.0):
     """
