@@ -43,11 +43,38 @@ def is_already_solved(solution_path, test_data):
     except FileNotFoundError:
         return False
 
+bf_experiments = [
+    {'problem': problem, 
+     'language': language, 
+     'branching_factor': branching_factor, 
+     'max_programs': 1000, 
+     'beam_width': branching_factor}
+    for problem in task_descriptions.keys()
+    for language in ('C++', 'Python')
+    for branching_factor in (1, 10, 100, 1000)
+]
 
-def run_benchmark(problem, language='C++', branching_factor=100,
+prompt_experiments = [
+    {'problem': problem,
+     'language': language,
+     'branching_factor': branching_factor,
+     'max_programs': 1000,
+     'beam_width': branching_factor,
+     'debug_prompt_id': debug_prompt_id,
+     'batch_size': 10}
+    for debug_prompt_id in range(11)
+    for language in ('C++', 'Python')
+    for problem in task_descriptions.keys()
+    for branching_factor in [1]
+]
+
+experiments = bf_experiments + prompt_experiments
+
+def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                   max_programs=1000, beam_width=100, debug_prompt_id=0,
                   seed=42, valid_examples=100, test_examples=2000,
-                  prompt_examples=5, batch_size=10, mode='execute', log='ERROR'):
+                  prompt_examples=5, batch_size=10, mode='execute', log='ERROR',
+                  task_id=None):
     """Generate and repair programs in PSB2
 
     Parameters
@@ -84,8 +111,11 @@ def run_benchmark(problem, language='C++', branching_factor=100,
         for one parent during the beam search
     mode : str
         'execute' or 'debug'
-
     """
+    
+    if task_id:
+        return run_benchmark(**{**locals(), **experiments[task_id - 1]})
+
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -94,8 +124,6 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     baseline = pushgp_success_rates[problem]
 
     run = wandb.init(entity=os.environ.get('WANDB_ENTITY'), project='codex-for-psb', config=locals())
-    run.config['task_id'] = get_task_id()
-    run.config['slurm_array_job_id'] = os.environ.get('SLURM_ARRAY_TASK_ID')
     run.config['slurm_job_id'] = os.environ.get('SLURM_JOB_ID')
 
     language = language_(language)
@@ -161,50 +189,14 @@ def run_benchmark(problem, language='C++', branching_factor=100,
                'test_pass_rate': solution.pass_rate})
     run.finish()
 
-def get_task_id():
-    try:
-        task_id = int(os.environ.get('TASK_ID') or os.environ.get('SLURM_ARRAY_TASK_ID'))
-        task_id -= 1
-    except TypeError:
-        task_id = None
-    return task_id
-
-
-bf_experiments = [
-    {'problem': problem, 
-     'language': language, 
-     'branching_factor': branching_factor, 
-     'max_programs': 1000, 
-     'beam_width': branching_factor}
-    for problem in task_descriptions.keys()
-    for language in ('C++', 'Python')
-    for branching_factor in (1, 10, 100, 1000)
-]
-
-prompt_experiments = [
-    {'problem': problem,
-     'language': language,
-     'branching_factor': branching_factor,
-     'max_programs': 1000,
-     'beam_width': branching_factor,
-     'debug_prompt_id': debug_prompt_id,
-     'batch_size': 10}
-    for debug_prompt_id in range(11)
-    for language in ('C++', 'Python')
-    for problem in task_descriptions.keys()
-    for branching_factor in [1]
-]
-
-experiments = bf_experiments + prompt_experiments
-
 if __name__ == '__main__':
-    task_id = get_task_id()
+    slurm_task_id = os.environ.get('SLURM_ARRAY_TASK_ID')
+    if slurm_task_id:
+        os.environ['TASK_ID'] = slurm_task_id
+
     logger.info('Start')
     try:
-        if task_id is not None:
-            run_benchmark(**experiments[task_id])
-        else:
-            Fire(run_benchmark)
+        Fire(run_benchmark)
     except:
         logging.error(traceback.format_exc())
         raise
