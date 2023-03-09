@@ -31,3 +31,5 @@ solutions
 scripts/
 create_scripts.py
 
+poetry.lock
+dist/

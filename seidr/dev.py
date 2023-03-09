@@ -3,8 +3,8 @@ import logging
 
 from programlib import Program
 
-from gpt import explore_gpt
-from prompt import initial_prompt, write_debug_prompt, start_coding
+from seidr.gpt import explore_gpt
+from seidr.prompt import initial_prompt, write_debug_prompt, start_coding
 
 
 def rolling_best(objects, max_score=1, metric=lambda x: x):
@@ -61,7 +61,7 @@ def distribute_heat(heat, n, batch_size):
 
 
 def draft(task_description, examples, language, batch_size=10, limit_n=None, 
-          log_gpt_call=print):
+          log_gpt_call=lambda **kwargs: print(kwargs)):
     t, delta_t = distribute_heat(1, limit_n, batch_size)
         
     prompt = initial_prompt(task_description, examples)
@@ -90,20 +90,23 @@ def debug(code, debug_prompt_text, n, batch_size=10, log_gpt_call=print):
                           log_gpt_call=log_gpt_call)
     return itertools.islice(codegen, n)
 
-def test(code, tests, language='C++'):
-    program = Program(code, language=language)
-    return program, program.test(tests)
+def pbe_critic(task_description, tests, debug_template='Make sure {i} -> {o}'):
+    def critic(program):
+        test_runs = program.test(tests)
+        dp = write_debug_prompt(test_runs, debug_template, task_description)
+        return program, dp
+    return critic
 
-
-def develop(task_description, examples=tuple(), tests=tuple(),
-            debug_prompt_text='Make sure {i} -> {o}',
+def develop(task_description, 
+            critic,
+            examples,
             language='C++',
             beam_width=100,
             branching_factor=10,
             max_programs=None,
             log_metrics=print,
             log_program=lambda p: print(p.read()),
-            log_gpt_call=print,
+            log_gpt_call=lambda **kwargs: print(kwargs),
             batch_size=10):
     """
     Write a program in language that solves task and passes tests.
@@ -120,19 +123,19 @@ def develop(task_description, examples=tuple(), tests=tuple(),
     more tests than the previous one. The last program in the generator
     passes all tests.
     """
-    codes = draft(task_description, examples, language, batch_size=batch_size, limit_n=beam_width, log_gpt_call=log_gpt_call)
+    codes = draft(task_description, examples, language, batch_size=batch_size, 
+                  limit_n=beam_width, log_gpt_call=log_gpt_call)
 
-    beam = (test(code, tests, language) for code in codes)
+    beam = (critic(Program(code, language=language)) for code in codes)
 
     def debug_and_test(candidate):
         logging.debug(f'Running debug_and_test')
-        program, test_runs = candidate
-        dp = write_debug_prompt(test_runs, debug_prompt_text, task_description)
-
-        for code in debug(program.read(), dp,
+        program, debug_prompt = candidate
+        
+        for code in debug(program.read(), debug_prompt,
                           n=branching_factor, batch_size=batch_size,
                           log_gpt_call=log_gpt_call):
-            yield test(code, tests, language)
+            yield critic(Program(code, language=language))
 
     def metric_logger(prefix):
         def log(program):
@@ -158,7 +161,7 @@ def develop(task_description, examples=tuple(), tests=tuple(),
             if max_programs and idx >= max_programs:
                 break
     solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_width)
-    solutionogen = (program for program, test_runs in solutionogen)
+    solutionogen = (program for program, instruction in solutionogen)
     solutionogen = limit_n(solutionogen)
 
     solutionogen = map(metric_logger(''), solutionogen)
@@ -180,4 +183,5 @@ if __name__ == '__main__':
     ]
 
     # Use the same IO examples for prompt and tests
-    develop(task, examples, examples)
+    critic = pbe_critic(task, examples)
+    develop(task, critic, examples)

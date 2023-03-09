@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "seidr"
+version = "1.0.0"
+description = "Synthesize Execute Instruct Debug Rank"
+authors = ["Vadim Liventsev <v.liventsev@tue.nl>", "Anastasia Grishina <anastasiia@simula.no>"]
+license = "MIT"
+readme = "README.md"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Compilers"
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+psb2 = {git = "https://github.com/vadim0x60/psb2-python"}
+openai = "<1.0.0"
+more-itertools = ">=8.0.0,<9.0.0"
+programlib = ">=4.2.0,<5.0.0"
+wandb = "<1.0.0"
+gitpython = ">=3.0.0,<4.0.0"
+tenacity = ">=8.0.0,<9.0.0"
+pandas = ">=1.0.0,<2.0.0"
+fire = "<1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,16 +1,16 @@
-# Draft-debug program synthesis
+# Synthesize Execute Instruct Debug Rank
 
-In this repository, we experiment with [the unreasonable effectiveness of language models for source code](https://vadim.me/publications/unreasonable/)
- and the draft-debug methodology of program synthesis (paper upcoming).
+A framework for AI-assisted program synthesis.
+Given a problem description and some input-output examples, the framework generates a program that solves the problem.
 
 ## Usage
 
 ```
-from develop import develop
+from seidr import develop
 help(develop)
 ```
 
-## Reproducing our PSB2 experiments
+## Reproducing the experiments from our paper
 
 The experiments reported in [the blog post](https://vadim.me/posts/unreasonable) and in the upcoming paper are contained in `benchmark.py` file. When you run this file, the AI-generated programs are commited to a dedicated github repository, while the metrics (i.e. how many tests every program passes) will be logged in your [Weights and Biases](https://wandb.ai)
 
