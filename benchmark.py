@@ -93,7 +93,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     logging.info('logging info')
     baseline = pushgp_success_rates[problem]
 
-    run = wandb.init(project='codex-for-psb', config=locals())
+    run = wandb.init(entity=os.environ.get('WANDB_ENTITY'), project='codex-for-psb', config=locals())
     run.config['task_id'] = get_task_id()
     run.config['slurm_array_job_id'] = os.environ.get('SLURM_ARRAY_TASK_ID')
     run.config['slurm_job_id'] = os.environ.get('SLURM_JOB_ID')
