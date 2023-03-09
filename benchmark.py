@@ -190,10 +190,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     run.finish()
 
 if __name__ == '__main__':
-    slurm_task_id = os.environ.get('SLURM_ARRAY_TASK_ID')
-    if slurm_task_id:
-        os.environ['TASK_ID'] = slurm_task_id
-
     logger.info('Start')
     try:
         Fire(run_benchmark)
