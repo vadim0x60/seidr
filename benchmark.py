@@ -112,9 +112,9 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     mode : str
         'execute' or 'debug'
     """
-    
+
     if task_id:
-        return run_benchmark(**{**locals(), **experiments[task_id - 1]})
+        locals().update(experiments[task_id - 1])
 
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
