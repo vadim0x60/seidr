@@ -92,8 +92,9 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     logging.info('logging info')
     baseline = pushgp_success_rates[problem]
 
-    run = wandb.init(entity=os.environ.get('WANDB_ENTITY'), project='codex-for-psb', config=locals())
-    run.config['slurm_job_id'] = os.environ.get('SLURM_JOB_ID')
+    config = {'slurm_job_id':os.environ.get('SLURM_JOB_ID'), **kwargs, **locals()}
+    del config['kwargs']
+    run = wandb.init(entity=os.environ.get('WANDB_ENTITY'), project='codex-for-psb', config=config)
     logger.info(f'Run config {run.config}, W&B: {run.url}')
 
     language = language_(language)
