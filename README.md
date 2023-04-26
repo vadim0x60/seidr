@@ -1,7 +1,7 @@
 # Draft-debug program synthesis
 
 In this repository, we experiment with [the unreasonable effectiveness of language models for source code](https://vadim.me/publications/unreasonable/)
- and the draft-debug methodology of program synthesis (paper upcoming).
+ and the draft-debug methodology of program synthesis [[Liventsev, Grishina GECCO 2023]](https://arxiv.org/abs/2304.10423).
 
 ## Usage
 
