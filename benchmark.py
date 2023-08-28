@@ -5,8 +5,8 @@ import traceback
 import pandas as pd
 import psb2
 import wandb
-from develop import develop
-from github import config_repo, upload_file
+from seidr.dev import develop, pbe_critic
+from seidr.github import config_repo, upload_file
 from fire import Fire
 from more_itertools import chunked
 from pathlib import Path
@@ -108,7 +108,7 @@ def run_benchmark(problem, language='C++', branching_factor=100,
     os.makedirs(solutions_dir, exist_ok=True)
 
     description = task_descriptions[problem]
-    debug_prompt_text = debug_templates[debug_prompt_id]
+    debug_template = debug_templates[debug_prompt_id]
 
     # ensure that the same I/O pairs are fetched for every experiment
     random.seed(seed)
@@ -144,8 +144,8 @@ def run_benchmark(problem, language='C++', branching_factor=100,
         wandb.log({'gpt_calls': call_count})
         call_count += 1
 
-    solution = develop(description, prompt_data, valid_data,
-                       debug_prompt_text=debug_prompt_text,
+    critic = pbe_critic(description, valid_data, debug_template)
+    solution = develop(description, prompt_data, critic,
                        language=language,
                        beam_width=beam_width,
                        branching_factor=branching_factor,

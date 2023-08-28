@@ -29,6 +29,7 @@ def beam_search(beam, update, metric, beam_width=100):
 
     new_beam = []
 
+    # yield beam_width draft (non-repaired) programs
     for code in beam:
         yield code
         new_beam.append(code)
@@ -39,6 +40,7 @@ def beam_search(beam, update, metric, beam_width=100):
             break
         new_beam = []
 
+        # yield beam_width * branching_factor children (repaired programs)
         for parent in beam:
             for child in update(parent):
                 yield child
@@ -98,8 +100,8 @@ def pbe_critic(task_description, tests, debug_template='Make sure {i} -> {o}'):
     return critic
 
 def develop(task_description, 
-            critic,
             examples,
+            critic,
             language='C++',
             beam_width=100,
             branching_factor=10,
@@ -184,4 +186,4 @@ if __name__ == '__main__':
 
     # Use the same IO examples for prompt and tests
     critic = pbe_critic(task, examples)
-    develop(task, critic, examples)
+    develop(task, examples, critic)
