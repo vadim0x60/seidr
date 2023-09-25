@@ -9,6 +9,7 @@ from pathlib import Path
 
 from benchmark import task_descriptions
 
+
 bf_experiments = [
     {'problem': problem,
      'language': language,
@@ -22,21 +23,8 @@ bf_experiments = [
     for branching_factor in (2, 4, 16)
 ]
 
-prompt_experiments = [
-    {'problem': problem,
-     'language': language,
-     'branching_factor': branching_factor,
-     'max_programs': 1000,
-     'beam_width': branching_factor,
-     'debug_prompt_id': debug_prompt_id,
-     'batch_size': 10}
-    for debug_prompt_id in range(11)
-    for language in ('C++', 'Python')
-    for problem in task_descriptions.keys()
-    for branching_factor in [1]
-]
+experiments = bf_experiments
 
-experiments = bf_experiments + prompt_experiments
 
 if __name__ == '__main__':
     try:
