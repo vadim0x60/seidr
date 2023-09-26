@@ -54,7 +54,7 @@ srun python3 benchmark.py \
     --branching_factor $BF \
     --max_programs $MP \
     --beam_width $BW \
-    --debug_prompt_id &PROMPT \
-    --batch_size &BATCH
+    --debug_prompt_id $PROMPT \
+    --batch_size $BATCH
 
 echo "Job finished"
