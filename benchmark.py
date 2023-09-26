@@ -130,12 +130,13 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         logging.info(f'{problem} is already solved, shutting down')
         return
 
-    def log_program(solution):
-        solution.save(solutions_dir / filename)
+    def log_program(program, message=None):
+        program.save(solutions_dir / filename)
         if solutions_repo:
             idx = wandb.run.summary['idx']
-            cmsg = f'solution {idx} of {problem}, {solution.pass_rate} of validation tests passed'
-            upload_file(solutions_repo, filename, cmsg)
+            if message is None:
+                message = f'solution {idx} of {problem}, {program.pass_rate} of validation tests passed'
+            upload_file(solutions_repo, filename, message)
 
     call_count = 0
     def log_gpt_call(**kwargs):

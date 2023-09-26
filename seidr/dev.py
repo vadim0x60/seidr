@@ -95,9 +95,12 @@ def debug(code, debug_prompt_text, n, batch_size=10, log_gpt_call=print):
 def pbe_critic(task_description, tests, debug_template='Make sure {i} -> {o}'):
     def critic(program):
         test_runs = program.test(tests)
-        dp = write_debug_prompt(test_runs, debug_template, task_description)
-        return program, dp
+        return write_debug_prompt(test_runs, debug_template, task_description)
     return critic
+
+def log_program(program, message=''):
+    print(message)
+    print(program.read())
 
 def develop(task_description, 
             examples,
@@ -107,7 +110,7 @@ def develop(task_description,
             branching_factor=10,
             max_programs=None,
             log_metrics=print,
-            log_program=lambda p: print(p.read()),
+            log_program=log_program,
             log_gpt_call=lambda **kwargs: print(kwargs),
             batch_size=10):
     """
@@ -125,57 +128,52 @@ def develop(task_description,
     more tests than the previous one. The last program in the generator
     passes all tests.
     """
-    codes = draft(task_description, examples, language, batch_size=batch_size, 
-                  limit_n=beam_width, log_gpt_call=log_gpt_call)
+    beam = []
+    for code in draft(task_description, examples, language, batch_size=batch_size, 
+                      limit_n=beam_width, log_gpt_call=log_gpt_call):
+        prompt = task_description
+        program = Program(code, language=language)
+        feedback = critic(program)
+        beam.append((prompt, program, feedback))
 
-    beam = (critic(Program(code, language=language)) for code in codes)
-
-    def debug_and_test(candidate):
+    def have_kids(candidate):
         logging.debug(f'Running debug_and_test')
-        program, debug_prompt = candidate
+        prompt, program, feedback = candidate
         
-        for code in debug(program.read(), debug_prompt,
+        for code in debug(program.read(), feedback,
                           n=branching_factor, batch_size=batch_size,
                           log_gpt_call=log_gpt_call):
-            yield critic(Program(code, language=language))
+            program = Program(code, language=language)
+            yield feedback, program, critic(program)
 
-    def metric_logger(prefix):
-        def log(program):
-            log_metrics({
-                prefix + 'avg_score': program.avg_score,
-                prefix + 'pass_rate': program.pass_rate,
-            })
+    def metric(candidate):
+        prompt, program, feedback = candidate
+        return program.avg_score
+    
+    best_score = float('-inf')
 
-            return program
+    for idx, candidate in enumerate(beam_search(beam, have_kids, metric, beam_width)):
+        prompt, program, feedback = candidate
 
-        return log
+        metrics = {
+            'avg_score': program.avg_score,
+            'pass_rate': program.pass_rate,
+        }
 
-    def limit_n(programs):
-        for idx, program in enumerate(programs):
-            log_metrics({
-                'idx': idx
-            })
-            logging.info(f'\nProgram idx: {idx}\n')
-            if int(idx) % 10 == 0:
-                logging.info(f'\nProgram code:\n{program.read()}')
-            yield program
+        log_metrics(metrics)
 
-            if max_programs and idx >= max_programs:
+        if program.avg_score > best_score:
+            best_score = program.avg_score
+            log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
+            log_program(program, message=prompt)
+
+            if program.avg_score == 1:
                 break
-    solutionogen = beam_search(beam, debug_and_test, lambda candidate: candidate[0].avg_score, beam_width)
-    solutionogen = (program for program, instruction in solutionogen)
-    solutionogen = limit_n(solutionogen)
 
-    solutionogen = map(metric_logger(''), solutionogen)
-    solutionogen = rolling_best(solutionogen, max_score=1, metric=lambda prog: prog.avg_score)
+        if max_programs is not None and (idx > max_programs):
+            break
 
-    solution = None
-
-    for solution in solutionogen:
-        metric_logger('best_')(solution)
-        log_program(solution)
-
-    return solution
+    return program
 
 
 if __name__ == '__main__':
