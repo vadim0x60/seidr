@@ -50,15 +50,16 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
 def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
     logging.info('Updating debug prompt')
     mistake = min(test_runs, key=lambda run: run.correctness)
-    if len(mistake) > 0:
-        if mistake.error_lines:
-            error_lines = '\n'.join(mistake.error_lines)
+    output_lines = '\n'.join([s.decode("utf-8") if type(s) == bytes else s for s in mistake.output_lines])
+    if mistake.correctness < 1:
+        if mistake.exit_status:
+            error_lines = output_lines
             return f'Fix {error_lines}'
         else:
             i = '\\n'.join(mistake.input_lines)
             o = '\\n'.join(mistake.expected_output_lines)
             if 'GPT ---' in debug_prompt_text:
-                output_lines = '\n'.join([s.decode("utf-8") if type(s) == bytes else s for s in mistake.output_lines])
+                
                 return gpt_assisted_prompt(
                     debug_prompt_text, task_description, mistake.input_lines,
                     mistake.expected_output_lines, output_lines)
