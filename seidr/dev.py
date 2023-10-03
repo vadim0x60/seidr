@@ -98,7 +98,7 @@ def pbe_critic(task_description, tests, debug_template='Make sure {i} -> {o}'):
         return write_debug_prompt(test_runs, debug_template, task_description)
     return critic
 
-def log_program(program, message=''):
+def print_program(program, message=''):
     print(message)
     print(program.read())
 
@@ -110,8 +110,9 @@ def develop(task_description,
             branching_factor=10,
             max_programs=None,
             log_metrics=print,
-            log_program=log_program,
-            log_gpt_call=lambda **kwargs: print(kwargs),
+            log_attempt=print_program,
+            log_solution=lambda *args, **kwargs: print('This program is the best!'),
+            log_gpt_call=lambda *args, **kwargs: print(kwargs),
             batch_size=10):
     """
     Write a program in language that solves task and passes tests.
@@ -161,11 +162,12 @@ def develop(task_description,
         }
 
         log_metrics(metrics)
+        log_attempt(program, message=prompt)
 
         if program.avg_score > best_score:
             best_score = program.avg_score
             log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
-            log_program(program, message=prompt)
+            log_solution(program, message=prompt)
 
             if program.avg_score == 1:
                 break
