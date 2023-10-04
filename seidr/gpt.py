@@ -110,6 +110,7 @@ def explore_gpt(source='', instruction=None, modality='code', batch_size=1,
 
 if __name__ == '__main__':
     import itertools
+    logging.basicConfig(level=logging.INFO)
 
-    for code in itertools.islice(explore_gpt(input()), 10):
+    for code in itertools.islice(explore_gpt(instruction=input()), 10):
         print(code)
