@@ -87,6 +87,7 @@ class ProgramLogger:
          cache_dir = branch + '_' + str(uuid4())[:6]
          self.dir = Path('solutions') / cache_dir
          self.repo = config_repo(self.dir, branch=branch)
+         os.makedirs(self.dir, exist_ok=True)
 
     def current(self):
         with open(self.dir / self.filename, 'r') as f:
