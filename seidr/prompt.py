@@ -5,7 +5,7 @@ from string import Template
 from programlib import language_
 
 from seidr.gpt import explore_gpt
-
+from seidr import get_template
 
 def initial_prompt(task_description, examples):
     prompt = task_description
@@ -71,9 +71,7 @@ def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
 
 def start_coding(prompt, language='C++'):
     language = language_(language)
-    template_name = language.source.format(name='template')
-
-    with open(Path(__file__).parent / 'code-templates' / template_name) as f:
-        template = Template(f.read())
-
+    template = language.source.format(name='template')
+    template = get_template(template)
+    template = Template(template)
     return template.substitute(prompt=prompt)

@@ -162,12 +162,14 @@ def develop(task_description,
         }
 
         log_metrics(metrics)
-        log_attempt(program, message=prompt)
+        log_attempt(program, idx=idx, 
+                    prompt=prompt, test_pass_rate=program.pass_rate)
 
         if program.avg_score > best_score:
             best_score = program.avg_score
             log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
-            log_solution(program, message=prompt)
+            log_solution(program, idx=idx, 
+                         prompt=prompt, test_pass_rate=program.pass_rate)
 
             if program.avg_score == 1:
                 break

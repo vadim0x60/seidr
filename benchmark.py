@@ -5,6 +5,7 @@ import traceback
 import pandas as pd
 import psb2
 import wandb
+from seidr import get_template
 from seidr.dev import develop, pbe_critic
 from seidr.github import ProgramLogger
 from fire import Fire
@@ -22,10 +23,10 @@ with open('psb2-meta/tasks.txt') as f:
     task_descriptions = {name.strip(): description.strip()
                          for name, description in chunked(f.readlines(), 2)}
 
-with open('debug-prompt-templates/prompts.txt') as f:
-    debug_templates = {int(ix.strip()): prompt.strip() \
-                       for ix, prompt in list(map(lambda x: x.split('\t'), f.readlines()))}
-
+debug_templates = [line.split('\t') 
+                   for line in get_template('prompts.txt').splitlines()]
+debug_templates = {int(ix.strip()): prompt.strip() 
+                   for ix, prompt in debug_templates }
 
 def title2kebabcase(title):
     return '-'.join(word.lower() for word in title.split(' '))
@@ -98,13 +99,19 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     language = language_(language)
 
     filename = language.source.format(name=problem)
+    commit_msg_template = get_template('commit.txt').format(
+        problem=problem,
+        wandb_url=run.url)
+
     attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_dev'
     solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}'
 
     attempts_logger = ProgramLogger(branch=attempts_branch, 
-                                    filename=filename)
+                                    filename=filename,
+                                    commit_msg_template=commit_msg_template)
     solutions_logger = ProgramLogger(branch=solutions_branch,
-                                     filename=filename)
+                                     filename=filename,
+                                     commit_msg_template=commit_msg_template)
 
     description = task_descriptions[problem]
     debug_template = debug_templates[debug_prompt_id]

@@ -81,9 +81,10 @@ class ProgramLogger:
     If git environment variables are set, will synchronize with a remote repository.
     """
 
-    def __init__(self, branch, filename) -> None:
+    def __init__(self, branch, filename, commit_msg_template='{message}'):
          os.makedirs('solutions', exist_ok=True)
          self.filename = filename
+         self.commit_msg_template = commit_msg_template
          cache_dir = branch + '_' + str(uuid4())[:6]
          self.dir = Path('solutions') / cache_dir
          self.repo = config_repo(self.dir, branch=branch)
@@ -93,12 +94,11 @@ class ProgramLogger:
         with open(self.dir / self.filename, 'r') as f:
             return Program(f.read())
 
-    def log(self, program, message=None):
+    def log(self, program, **vars):
         program.save(self.dir / self.filename)
         if self.repo:
-            if message is None:
-                message = f'{program.pass_rate} of validation tests passed'
-            upload_file(self.repo, self.filename, message)
+            commit_msg = self.commit_msg_template.format(**vars)
+            upload_file(self.repo, self.filename, commit_msg)
 
     def __call__(self, *args, **kwargs):
         return self.log(*args, **kwargs)
