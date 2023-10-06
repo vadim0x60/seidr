@@ -98,8 +98,8 @@ def pbe_critic(task_description, tests, debug_template='Make sure {i} -> {o}'):
         return write_debug_prompt(test_runs, debug_template, task_description)
     return critic
 
-def print_program(program, message=''):
-    print(message)
+def print_program(program, **vars):
+    print(vars)
     print(program.read())
 
 def develop(task_description, 
