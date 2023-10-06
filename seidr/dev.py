@@ -157,6 +157,7 @@ def develop(task_description,
         prompt, program, feedback = candidate
 
         metrics = {
+            'idx': idx,
             'avg_score': program.avg_score,
             'pass_rate': program.pass_rate,
         }

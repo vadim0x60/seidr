@@ -108,9 +108,11 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
 
     attempts_logger = ProgramLogger(branch=attempts_branch, 
                                     filename=filename,
+                                    language=language,
                                     commit_msg_template=commit_msg_template)
     solutions_logger = ProgramLogger(branch=solutions_branch,
                                      filename=filename,
+                                     language=language,
                                      commit_msg_template=commit_msg_template)
 
     description = task_descriptions[problem]
