@@ -5,14 +5,14 @@ import traceback
 import pandas as pd
 import psb2
 import wandb
+from seidr import get_template
 from seidr.dev import develop, pbe_critic
-from seidr.github import config_repo, upload_file
+from seidr.github import ProgramLogger
 from fire import Fire
 from more_itertools import chunked
-from pathlib import Path
 from programlib import Program
 from programlib import language_
-from uuid import uuid4
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +23,10 @@ with open('psb2-meta/tasks.txt') as f:
     task_descriptions = {name.strip(): description.strip()
                          for name, description in chunked(f.readlines(), 2)}
 
-with open('debug-prompt-templates/prompts.txt') as f:
-    debug_templates = {int(ix.strip()): prompt.strip() \
-                       for ix, prompt in list(map(lambda x: x.split('\t'), f.readlines()))}
-
+debug_templates = [line.split('\t') 
+                   for line in get_template('prompts.txt').splitlines()]
+debug_templates = {int(ix.strip()): prompt.strip() 
+                   for ix, prompt in debug_templates }
 
 def title2kebabcase(title):
     return '-'.join(word.lower() for word in title.split(' '))
@@ -36,10 +36,9 @@ pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
                                    sep='\t', index_col=['Problem'])
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
-def is_already_solved(solution_path, test_data):
+def is_already_solved(solutions_logger, test_data):
     try:
-        with open(solution_path) as f:
-            return Program(f.read()).test(test_data) == 1.0
+        return solutions_logger.current().test(test_data) == 1.0
     except FileNotFoundError:
         return False
 
@@ -98,13 +97,23 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     logger.info(f'Run config {run.config}, W&B: {run.url}')
 
     language = language_(language)
-    os.makedirs('solutions', exist_ok=True)
-    solutions_dir = Path('solutions') / str(uuid4())
 
-    # if git env variables are set, this will set up a git repo
-    solutions_repo = config_repo(solutions_dir, branch=f'bf{branching_factor}_promptid{debug_prompt_id}')
-    # if git env variables are not set, this will just create the directory
-    os.makedirs(solutions_dir, exist_ok=True)
+    filename = language.source.format(name=problem)
+    commit_msg_template = get_template('commit.txt').format(
+        problem=problem,
+        wandb_url=run.url)
+
+    attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_dev'
+    solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}'
+
+    attempts_logger = ProgramLogger(branch=attempts_branch, 
+                                    filename=filename,
+                                    language=language,
+                                    commit_msg_template=commit_msg_template)
+    solutions_logger = ProgramLogger(branch=solutions_branch,
+                                     filename=filename,
+                                     language=language,
+                                     commit_msg_template=commit_msg_template)
 
     description = task_descriptions[problem]
     debug_template = debug_templates[debug_prompt_id]
@@ -122,21 +131,13 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         for ix in range(5):
             train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 10, format='competitive')
             for filename, data in zip([f'train_{ix}.txt', f'test_{ix}.txt'], [train_data, test_data]):
-                with open(solutions_dir / filename, 'w') as f:
+                with open(Path('solutions') / filename, 'w') as f:
                     f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
     filename = language.source.format(name=problem)
-    if is_already_solved(solutions_dir / filename, test_data):
+    if is_already_solved(solutions_logger, test_data):
         logging.info(f'{problem} is already solved, shutting down')
         return
-
-    def log_program(program, message=None):
-        program.save(solutions_dir / filename)
-        if solutions_repo:
-            idx = wandb.run.summary['idx']
-            if message is None:
-                message = f'solution {idx} of {problem}, {program.pass_rate} of validation tests passed'
-            upload_file(solutions_repo, filename, message)
 
     call_count = 0
     def log_gpt_call(**kwargs):
@@ -151,7 +152,8 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                        branching_factor=branching_factor,
                        max_programs=max_programs,
                        log_metrics=wandb.log,
-                       log_program=log_program,
+                       log_attempt=attempts_logger,
+                       log_solution=solutions_logger,
                        log_gpt_call=log_gpt_call,
                        batch_size=min(batch_size, branching_factor))
 

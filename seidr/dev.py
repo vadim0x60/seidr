@@ -98,20 +98,21 @@ def pbe_critic(task_description, tests, debug_template='Make sure {i} -> {o}'):
         return write_debug_prompt(test_runs, debug_template, task_description)
     return critic
 
-def log_program(program, message=''):
-    print(message)
+def print_program(program, **vars):
+    print(vars)
     print(program.read())
 
 def develop(task_description, 
             examples,
             critic,
             language='C++',
-            beam_width=100,
+            beam_width=3,
             branching_factor=10,
             max_programs=None,
             log_metrics=print,
-            log_program=log_program,
-            log_gpt_call=lambda **kwargs: print(kwargs),
+            log_attempt=print_program,
+            log_solution=lambda *args, **kwargs: print('This program is the best!'),
+            log_gpt_call=lambda *args, **kwargs: print(kwargs),
             batch_size=10):
     """
     Write a program in language that solves task and passes tests.
@@ -128,13 +129,9 @@ def develop(task_description,
     more tests than the previous one. The last program in the generator
     passes all tests.
     """
-    beam = []
-    for code in draft(task_description, examples, language, batch_size=batch_size, 
-                      limit_n=beam_width, log_gpt_call=log_gpt_call):
-        prompt = task_description
+    def initial_candidate(code):
         program = Program(code, language=language)
-        feedback = critic(program)
-        beam.append((prompt, program, feedback))
+        return task_description, program, critic(program)
 
     def have_kids(candidate):
         logging.debug(f'Running debug_and_test')
@@ -150,22 +147,30 @@ def develop(task_description,
         prompt, program, feedback = candidate
         return program.avg_score
     
+    beam = draft(task_description, examples, language, batch_size=batch_size, 
+                 limit_n=beam_width, log_gpt_call=log_gpt_call)
+    beam = map(initial_candidate, beam)
+    
     best_score = float('-inf')
 
     for idx, candidate in enumerate(beam_search(beam, have_kids, metric, beam_width)):
         prompt, program, feedback = candidate
 
         metrics = {
+            'idx': idx,
             'avg_score': program.avg_score,
             'pass_rate': program.pass_rate,
         }
 
         log_metrics(metrics)
+        log_attempt(program, idx=idx, 
+                    prompt=prompt, test_pass_rate=program.pass_rate)
 
         if program.avg_score > best_score:
             best_score = program.avg_score
             log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
-            log_program(program, message=prompt)
+            log_solution(program, idx=idx, 
+                         prompt=prompt, test_pass_rate=program.pass_rate)
 
             if program.avg_score == 1:
                 break

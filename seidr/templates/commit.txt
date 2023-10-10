@@ -1,0 +1,4 @@
+Solution {{idx}} of {problem}, {{test_pass_rate}} of tests passed. 
+W&B: {wandb_url}
+Prompt:
+{{prompt}}

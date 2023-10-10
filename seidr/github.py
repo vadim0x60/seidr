@@ -1,13 +1,22 @@
+"""
+Handy tools for recording our generated programs to a git repository.
+May be nice to include this into programlib one day
+"""
+
+import git
+import gitdb
 from git import GitError
 from git import Repo
-import shutil
-import logging
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 from tenacity import wait_random_exponential
-import git
-import gitdb
+from programlib import Program
 
+from pathlib import Path
+from uuid import uuid4
+import os
+import shutil
+import logging
 
 @retry(retry=retry_if_exception_type(git.exc.GitCommandError) |
              retry_if_exception_type(git.exc.BadName) |
@@ -65,3 +74,34 @@ def config_repo(dir, branch):
     except (KeyError, GitError) as e:
         logging.info(f'config_repo exception {e}')
         return None
+
+class ProgramLogger:
+    """
+    A careful archivist keeping track of your program's versions.
+    If git environment variables are set, will synchronize with a remote repository.
+    """
+
+    def __init__(self, branch, filename, language, 
+                 commit_msg_template='{message}'):
+         os.makedirs('solutions', exist_ok=True)
+         self.filename = filename
+         self.language = language
+         self.commit_msg_template = commit_msg_template
+         cache_dir = branch + '_' + str(uuid4())[:6]
+         self.dir = Path('solutions') / cache_dir
+         self.repo = config_repo(self.dir, branch=branch)
+         os.makedirs(self.dir, exist_ok=True)
+
+    def current(self):
+        return Program(workdir=self.dir, 
+                       name=self.filename, 
+                       language=self.language)    
+
+    def log(self, program, **vars):
+        program.save(self.dir / self.filename)
+        if self.repo:
+            commit_msg = self.commit_msg_template.format(**vars)
+            upload_file(self.repo, self.filename, commit_msg)
+
+    def __call__(self, *args, **kwargs):
+        return self.log(*args, **kwargs)
