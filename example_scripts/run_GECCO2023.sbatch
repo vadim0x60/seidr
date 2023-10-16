@@ -49,6 +49,7 @@ echo "srun python3 run_experiments.py ${ARGS}"
 
 # note that the order of arguments in benchmark.py can be different, so argument names are important
 srun python3 benchmark.py \
+    --task_id $SLURM_ARRAY_TASK_ID \
     --problem $PROBLEM \
     --language $LANG \
     --branching_factor $BF \
