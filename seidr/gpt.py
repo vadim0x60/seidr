@@ -71,7 +71,7 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, t=1.0):
             if modality == 'text':
                 result = [choice['text'] for choice in response["choices"]
                           if "text" in choice.keys()]
-                logging.info(f"\nBug summary by GPT:\n{result[0]}\n")
+                logging.info(f"\nBug summary by GPT:\n{result[0]}")
             else:
                 result = [source + '\n' + choice['text'] for choice in response["choices"]
                           if "text" in choice.keys()]
