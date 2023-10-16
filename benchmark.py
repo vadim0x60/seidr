@@ -98,7 +98,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
 
     language = language_(language)
 
-    filename = language.source.format(name=problem)
     commit_msg_template = get_template('commit.txt').format(
         problem=problem,
         wandb_url=run.url)
@@ -107,11 +106,11 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}'
 
     attempts_logger = ProgramLogger(branch=attempts_branch, 
-                                    filename=filename,
+                                    name=problem,
                                     language=language,
                                     commit_msg_template=commit_msg_template)
     solutions_logger = ProgramLogger(branch=solutions_branch,
-                                     filename=filename,
+                                     name=problem,
                                      language=language,
                                      commit_msg_template=commit_msg_template)
 
@@ -134,7 +133,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                 with open(Path('solutions') / filename, 'w') as f:
                     f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
-    filename = language.source.format(name=problem)
     if is_already_solved(solutions_logger, test_data):
         logging.info(f'{problem} is already solved, shutting down')
         return
