@@ -36,7 +36,11 @@ def upload_file(repo, filename, message=None):
     repo.index.add(filename)
     repo.index.commit(message)
     pullpush(repo)
-    logging.info(f'Tried to push updates to git. \nCommit message: {message}')
+    commit_url = repo.remotes.origin.url + "/commit/" + repo.head.commit.hexsha
+    commit_url = 'https://' + commit_url[commit_url.find('@github.com') + 1:]
+    logging.info(f'Tried to push updates to git repo.\n'
+                 f'See commit at {commit_url}. \n'
+                 f'Commit message: {message}')
 
 
 def ensure_repo(remote, path, branch=None):
