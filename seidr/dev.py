@@ -175,7 +175,7 @@ def develop(task_description,
             if program.avg_score == 1:
                 break
 
-        if max_programs is not None and (idx > max_programs):
+        if max_programs is not None and (idx == max_programs - 1):
             break
 
     return program
