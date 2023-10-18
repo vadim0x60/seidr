@@ -156,6 +156,8 @@ def develop(task_description,
     for idx, candidate in enumerate(beam_search(beam, have_kids, metric, beam_width)):
         prompt, program, feedback = candidate
 
+        logging.info(f'Current program:\n{program.read()}')
+
         metrics = {
             'idx': idx,
             'avg_score': program.avg_score,

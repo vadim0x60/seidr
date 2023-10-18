@@ -5,7 +5,7 @@ May be nice to include this into programlib one day
 
 import git
 import gitdb
-from git import GitError
+from git import GitError, NoSuchPathError
 from git import Repo
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
@@ -49,13 +49,16 @@ def ensure_repo(remote, path, branch=None):
 
         if branch:
             repo.git.checkout(branch)
-    except GitError:
+    except GitError as e:
+        logging.info(f'Git error in ensure repo {e}')
         shutil.rmtree(path, ignore_errors=True)
         repo = Repo.clone_from(remote, path)
 
         if branch:
-            branches = [ref.name for ref in repo.references]
+
             repo.git.fetch('--all')
+            branches = [ref.name for ref in repo.references]
+
             if f'{repo.remote().name}/{branch}' in branches:
                 repo.git.checkout(branch)
             else:

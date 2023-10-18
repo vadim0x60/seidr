@@ -108,8 +108,8 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         problem=problem,
         wandb_url=run.url)
 
-    attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_dev'
-    solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}'
+    attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}_dev'
+    solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}'
 
     attempts_logger = ProgramLogger(branch=attempts_branch, 
                                     name=problem,
