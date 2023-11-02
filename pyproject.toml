@@ -22,6 +22,9 @@ gitpython = ">=3.0.0,<4.0.0"
 tenacity = ">=8.0.0,<9.0.0"
 pandas = ">=1.0.0,<2.0.0"
 fire = "<1.0.0"
+jsonlines = "^4.0.0"
+jupyterlab = "^4.0.7"
+black = "^23.10.1"
 
 [build-system]
 requires = ["poetry-core"]
