@@ -156,6 +156,8 @@ def develop(task_description,
     for idx, candidate in enumerate(beam_search(beam, have_kids, metric, beam_width)):
         prompt, program, feedback = candidate
 
+        logging.info(f'Current program:\n{program.read()}')
+
         metrics = {
             'idx': idx,
             'avg_score': program.avg_score,
@@ -175,7 +177,7 @@ def develop(task_description,
             if program.avg_score == 1:
                 break
 
-        if max_programs is not None and (idx > max_programs):
+        if max_programs is not None and (idx == max_programs - 1):
             break
 
     return program

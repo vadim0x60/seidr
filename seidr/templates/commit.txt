@@ -1,4 +1,4 @@
-Solution {{idx}} of {problem}, {{test_pass_rate}} of tests passed. 
+Solution {{idx}} of {problem}, ratio {{test_pass_rate}} of 1.00 of tests passed.
 W&B: {wandb_url}
 Prompt:
 {{prompt}}
