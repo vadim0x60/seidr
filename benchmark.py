@@ -6,8 +6,9 @@ import pandas as pd
 import psb2
 import wandb
 from seidr import get_template
-from seidr.dev import develop, pbe_critic
-from seidr.github import ProgramLogger
+from seidr.dev import develop
+from seidr.eval import IOMatch, UnitTest
+from seidr.github import FileLogger
 from fire import Fire
 from more_itertools import chunked
 from programlib import Program
@@ -105,14 +106,12 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_dev'
     solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}'
 
-    attempts_logger = ProgramLogger(branch=attempts_branch, 
-                                    name=problem,
-                                    language=language,
-                                    commit_msg_template=commit_msg_template)
-    solutions_logger = ProgramLogger(branch=solutions_branch,
-                                     name=problem,
-                                     language=language,
-                                     commit_msg_template=commit_msg_template)
+    attempts_logger = FileLogger(branch=attempts_branch, 
+                                 filename=language.source.format(problem),
+                                 commit_msg_template=commit_msg_template)
+    solutions_logger = FileLogger(branch=solutions_branch,
+                                  filename=language.source.format(problem),
+                                  commit_msg_template=commit_msg_template)
 
     description = task_descriptions[problem]
     debug_template = debug_templates[debug_prompt_id]
@@ -143,8 +142,13 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         wandb.log({'gpt_calls': call_count})
         call_count += 1
 
-    critic = pbe_critic(description, valid_data, debug_template)
-    solution = develop(description, prompt_data, critic,
+    critics = [
+        lambda code: IOMatch(code, language=language, input=inp, output=out,
+                             debug_template=debug_template, 
+                             task_description=description)
+        for inp, out in valid_data
+    ]
+    solution = develop(description, prompt_data, critics,
                        language=language,
                        beam_width=beam_width,
                        branching_factor=branching_factor,
@@ -156,7 +160,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                        batch_size=min(batch_size, branching_factor))
 
     logging.info('Development done. Testing...')
-    solution.test(test_data)
+    Program(solution, language=language).test(test_data)
     wandb.log({'test_avg_score': solution.avg_score,
                'test_pass_rate': solution.pass_rate})
     run.finish()
