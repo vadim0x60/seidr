@@ -90,10 +90,10 @@ class FileLogger:
          self.repo = config_repo(self.dir, branch=branch)
          os.makedirs(self.dir, exist_ok=True)
 
-    def current(self):
-        return Program(workdir=self.dir, 
-                       name=self.name, 
-                       language=self.language)    
+    # def current(self):
+    #     return Program(workdir=self.dir,
+    #                    name=self.filename,
+    #                    language=self.language)
 
     def log(self, content, **vars):
         with open(self.dir / self.filename, 'w') as f:

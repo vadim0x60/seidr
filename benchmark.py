@@ -37,9 +37,11 @@ pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
                                    sep='\t', index_col=['Problem'])
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
-def is_already_solved(solutions_logger, test_data):
+def is_already_solved(solutions_logger, test_data, language):
     try:
-        return solutions_logger.current().test(test_data) == 1.0
+        return Program(workdir=solutions_logger.dir,
+                       name=solutions_logger.filename,
+                       language=language).test(test_data)
     except FileNotFoundError:
         return False
 
@@ -103,14 +105,14 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         problem=problem,
         wandb_url=run.url)
 
-    attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_dev'
-    solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}'
+    attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_iotest_dev'
+    solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_iotest'
 
     attempts_logger = FileLogger(branch=attempts_branch, 
-                                 filename=language.source.format(problem),
+                                 filename=language.source.format(name=problem),
                                  commit_msg_template=commit_msg_template)
     solutions_logger = FileLogger(branch=solutions_branch,
-                                  filename=language.source.format(problem),
+                                  filename=language.source.format(name=problem),
                                   commit_msg_template=commit_msg_template)
 
     description = task_descriptions[problem]
@@ -132,7 +134,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                 with open(Path('solutions') / filename, 'w') as f:
                     f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
-    if is_already_solved(solutions_logger, test_data):
+    if is_already_solved(solutions_logger, test_data, language):
         logging.info(f'{problem} is already solved, shutting down')
         return
 
@@ -160,10 +162,12 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                        batch_size=min(batch_size, branching_factor))
 
     logging.info('Development done. Testing...')
-    Program(solution, language=language).test(test_data)
-    wandb.log({'test_avg_score': solution.avg_score,
-               'test_pass_rate': solution.pass_rate})
+    program = Program(solution, language=language)
+    program.test(test_data)
+    wandb.log({'test_avg_score': program.avg_score,
+               'test_pass_rate': program.pass_rate})
     run.finish()
+
 
 if __name__ == '__main__':
     try:
