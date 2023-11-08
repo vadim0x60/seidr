@@ -152,7 +152,7 @@ def develop(task_description,
         avg_score = sum(e.score() for e in evals) / len(evals)
         test_pass_rate = sum(e.check() for e in evals) / len(evals)
 
-        logging.info(f'Current program:\n{program.read()}')
+        logging.info(f'Current program:\n{code}')
 
         metrics = {
             'idx': idx,
