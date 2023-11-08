@@ -1,10 +1,16 @@
+"""Load and benchmark SEIDR on HumanEval-x"""
+
 import logging
 import os
+import pathlib
 import random
 import traceback
+from typing import List
+
 import pandas as pd
 import psb2
 import wandb
+from parse_humaneval_tests import load_jsonl
 from seidr import get_template
 from seidr.dev import develop
 from seidr.eval import IOMatch, UnitTest
@@ -15,22 +21,14 @@ from programlib import Program
 from programlib import language_
 from pathlib import Path
 
-from seidr.prompt import start_coding, initial_prompt
-
 logger = logging.getLogger(__name__)
 
-DATA_PATH = os.environ.get('DATA_PATH') or 'psb2'
+DATA_PATH = os.environ.get('DATA_PATH')
 
-task_descriptions = []
-with open('psb2-meta/tasks.txt') as f:
-    task_descriptions = {name.strip(): description.strip()
-                         for name, description in chunked(f.readlines(), 2)}
-
-debug_templates = [line.split('\t')
+debug_templates = [line.split('\t') 
                    for line in get_template('prompts.txt').splitlines()]
-debug_templates = {int(ix.strip()): prompt.strip()
-                   for ix, prompt in debug_templates}
-
+debug_templates = {int(ix.strip()): prompt.strip() 
+                   for ix, prompt in debug_templates }
 
 def title2kebabcase(title):
     return '-'.join(word.lower() for word in title.split(' '))
@@ -39,7 +37,6 @@ def title2kebabcase(title):
 pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
                                    sep='\t', index_col=['Problem'])
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
-
 
 def is_already_solved(solutions_logger, test_data, language):
     try:
@@ -50,7 +47,20 @@ def is_already_solved(solutions_logger, test_data, language):
         return False
 
 
-def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
+def load_humaneval_problem(
+        data_path: pathlib.Path,
+        language: str = "Python",
+        problem: str = "Python/0"
+) -> (str, List[str], str):
+    """Load prompt, tests and the canonical solution from parsed tests
+    from `data_path` path to the `humaneval` folder with jsonl files"""
+    language = "cpp" if language.lower() == "c++" else language.lower()
+    data = load_jsonl(data_path / f"humaneval_{language}_split_tests.jsonl")
+    task = [item for item in data if item["task_id"] == problem][0]
+    return task["prompt"], task["tests_split"], task["canonical_solution"]
+
+
+def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
                   max_programs=1000, beam_width=100, debug_prompt_id=0,
                   seed=42, valid_examples=100, test_examples=2000,
                   prompt_examples=5, batch_size=10, mode='execute', log='ERROR',
@@ -97,11 +107,11 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                         datefmt='%m/%d/%Y %H:%M:%S', level=log.upper())
     logging.info('logging info')
-    baseline = pushgp_success_rates[problem]
 
     config = {
         'slurm_job_id': os.environ.get('SLURM_JOB_ID'),
         'task_id': os.environ.get('TASK_ID'),
+        'dataset': f"humaneval-{language}",
         **kwargs,
         **locals()
     }
@@ -116,59 +126,50 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         problem=problem,
         wandb_url=run.url)
 
-    attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}_dev'
-    solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}'
+    attempts_branch = f'human_eval_bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}_dev'
+    solutions_branch = f'human_eval_bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}'
 
-    attempts_logger = FileLogger(branch=attempts_branch,
+    attempts_logger = FileLogger(branch=attempts_branch, 
                                  filename=language.source.format(name=problem),
                                  commit_msg_template=commit_msg_template)
     solutions_logger = FileLogger(branch=solutions_branch,
                                   filename=language.source.format(name=problem),
                                   commit_msg_template=commit_msg_template)
 
-    description = task_descriptions[problem]
+
     debug_template = debug_templates[debug_prompt_id]
 
     # ensure that the same I/O pairs are fetched for every experiment
     random.seed(seed)
 
-    train_data, test_data = psb2.fetch_examples(
-        DATA_PATH, problem, max(valid_examples, prompt_examples),
-        test_examples, format='competitive')
-    prompt_data = train_data[:prompt_examples]
-    valid_data = train_data[:valid_examples]
+    start_prompt, tests, canonical_solution = load_humaneval_problem(
+        pathlib.Path(DATA_PATH), language.name, problem
+    )
 
-    if mode == 'debug':
-        for ix in range(5):
-            train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 10, format='competitive')
-            for filename, data in zip([f'train_{ix}.txt', f'test_{ix}.txt'], [train_data, test_data]):
-                with open(Path('solutions') / filename, 'w') as f:
-                    f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
+    prompt_data = tests[:min(prompt_examples, len(tests))]
+    valid_data = tests[:min(valid_examples, len(tests))]
+    test_data = tests[min(valid_examples, len(tests)):]
 
     if is_already_solved(solutions_logger, test_data, language):
         logging.info(f'{problem} is already solved, shutting down')
         return
 
     call_count = 0
-
     def log_gpt_call(**kwargs):
         nonlocal call_count
         wandb.log({'gpt_calls': call_count})
         call_count += 1
 
-    critics = [
-        lambda code: IOMatch(code, language=language, input=inp, output=out,
-                             debug_template=debug_template,
-                             task_description=description)
-        for inp, out in valid_data
+    validation_critics = [
+        lambda code: UnitTest(code, language, test) for test in valid_data
     ]
-    prompt = initial_prompt(description, prompt_data)
-    start_prompt = start_coding(prompt, language=language)
+
+    description = "Complete the following code given the docstring and function signature"
 
     solution = develop(task_description=description,
                        start=start_prompt,
                        # prompt_data,
-                       critics=critics,
+                       critics=validation_critics,
                        language=language,
                        beam_width=beam_width,
                        branching_factor=branching_factor,
@@ -180,14 +181,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                        batch_size=min(batch_size, branching_factor))
 
     logging.info('Development done. Testing...')
-
-    test_scores = [
-        IOMatch(solution,
-                language=language,
-                input=inp, output=out,
-                debug_template=debug_template,
-                task_description=description).score()
-        for inp, out in valid_data]
+    test_scores = [UnitTest(solution, language, test).score() for test in valid_data]
     avg_score = sum(test_scores) / len(test_scores)
     test_pass_rate = sum([1 for i in range(len(test_scores)) if test_scores[i] == 1.]) / len(test_scores)
 
