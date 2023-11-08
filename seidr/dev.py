@@ -1,5 +1,7 @@
 import itertools
 import logging
+import itertools
+import random
 
 from seidr.gpt import explore_gpt
 from seidr.prompt import initial_prompt, write_debug_prompt, start_coding
@@ -21,10 +23,38 @@ def rolling_best(objects, max_score=1, metric=lambda x: x):
         if best_score >= max_score:
             break
 
+def standard_ranking(programs):
+    def avg_score(candidate):
+        prompt, code, evals = candidate
+        score = sum(e.score() for e in evals) / len(evals)
+        return score
 
-def beam_search(beam, update, metric, beam_width=100):
+    return sorted(programs, key=avg_score, reverse=True)
+
+def lexicase_ranking(candidates, case_count):
+    cases = random.shuffle(range(case_count))
+    for case_order in itertools.combinations(cases, case_count):
+        # Pseudocode from page 3 of
+        # Spector 2012 "Assessment of problem modality by differential performance of lexicase selection in genetic programming: a preliminary report"
+        candidates = list(programs)
+
+        # Loop until a single candidate is left
+        # Reversing case_order ensures diversity: the first case is always different
+        for case in reversed(case_order):
+            fitnesses = [evals[case].score() for _, _, evals in candidates]
+            best_fitness = max(fitnesses)
+
+            candidates = [(prompt, code, evals) 
+                          for prompt, code, evals in candidates 
+                          if evals[case].score() == best_fitness]
+
+            # If there's only one candidate left, return it
+            if len(candidates) == 1:
+                yield candidates[0]
+                break
+
+def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
-
     new_beam = []
 
     # yield beam_width draft (non-repaired) programs
@@ -33,7 +63,7 @@ def beam_search(beam, update, metric, beam_width=100):
         new_beam.append(code)
 
     while True:
-        beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
+        beam = ranking(beam)[:beam_width]
         if len(beam) == 0:
             break
         new_beam = []
@@ -132,11 +162,6 @@ def develop(task_description,
                           n=branching_factor, batch_size=batch_size,
                           log_gpt_call=log_gpt_call):
             yield feedback, code, [critic(code) for critic in critics]
-
-    def metric(candidate):
-        prompt, code, evals = candidate
-        avg_score = sum(e.score() for e in evals) / len(evals)
-        return avg_score
     
     beam = draft(task_description, examples, language, batch_size=batch_size, 
                  limit_n=beam_width, log_gpt_call=log_gpt_call)
@@ -145,7 +170,7 @@ def develop(task_description,
     
     best_score = float('-inf')
 
-    search = beam_search(beam, have_kids, metric, beam_width)
+    search = beam_search(beam, have_kids, standard_ranking, beam_width)
     for idx, candidate in enumerate(search):
         prompt, code, evals = candidate
 
