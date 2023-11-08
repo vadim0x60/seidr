@@ -36,7 +36,7 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
         a=actual_output)
 
     # Get GPT summary of a bug
-    logging.info(f'\nCode behavior:\n{code_behavior}')
+    logging.info(f'\nGPT summary of a bug:\n{code_behavior}')
     bug_description = next(explore_gpt(source=code_behavior, instruction=None,
                                        modality='text', batch_size=1, t=0.0, delta_t=0.2))
     # Form debug prompt using template
@@ -52,22 +52,29 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
 def write_debug_prompt(mistake, debug_prompt_text, task_description=None):
     logging.info('Updating debug prompt')
     output_lines = '\n'.join([s.decode("utf-8") if type(s) == bytes else s for s in mistake.output_lines])
+
+    prompt = ""
     if mistake.correctness < 1:
         if mistake.exit_status:
             error_lines = output_lines
-            return f'Fix {error_lines}'
+            prompt = f'Fix {error_lines}'
+
         else:
             i = '\\n'.join(mistake.input_lines)
             o = '\\n'.join(mistake.expected_output_lines)
             if 'GPT ---' in debug_prompt_text:
                 
-                return gpt_assisted_prompt(
+                prompt = gpt_assisted_prompt(
                     debug_prompt_text, task_description, mistake.input_lines,
                     mistake.expected_output_lines, output_lines)
-            return debug_prompt_text.format(i=i, o=o)
+            else:
+                prompt = debug_prompt_text.format(i=i, o=o)
     else:
         logging.info('\n\nrun.correctness = 1 for all runs, mistake lines are empty\n\n')
-        return dont_change
+        prompt = dont_change
+
+    logging.info(f'The prompt is: \n{prompt}')
+    return prompt
 
 
 def start_coding(prompt, language='C++'):
