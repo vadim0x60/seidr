@@ -7,6 +7,8 @@ from programlib import language_
 from seidr.gpt import explore_gpt
 from seidr import get_template
 
+dont_change = 'Do not change anything'
+
 def initial_prompt(task_description, examples):
     prompt = task_description
     prompt += '\nFor example,'
@@ -47,9 +49,8 @@ def gpt_assisted_prompt(debug_prompt_text, task_description, input, expected_out
     return debug_prompt_text
 
 
-def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
-    logging.info('Formation of debug prompt')
-    mistake = min(test_runs, key=lambda run: run.correctness)
+def write_debug_prompt(mistake, debug_prompt_text, task_description=None):
+    logging.info('Updating debug prompt')
     output_lines = '\n'.join([s.decode("utf-8") if type(s) == bytes else s for s in mistake.output_lines])
 
     prompt = ""
@@ -70,7 +71,7 @@ def write_debug_prompt(test_runs, debug_prompt_text, task_description=None):
                 prompt = debug_prompt_text.format(i=i, o=o)
     else:
         logging.info('\n\nrun.correctness = 1 for all runs, mistake lines are empty\n\n')
-        prompt = f'Do not change anything'
+        prompt = dont_change
 
     logging.info(f'The prompt is: \n{prompt}')
     return prompt

@@ -1,8 +1,6 @@
 import itertools
 import logging
 
-from programlib import Program
-
 from seidr.gpt import explore_gpt
 from seidr.prompt import initial_prompt, write_debug_prompt, start_coding
 
@@ -92,25 +90,19 @@ def debug(code, debug_prompt_text, n, batch_size=10, log_gpt_call=print):
                           log_gpt_call=log_gpt_call)
     return itertools.islice(codegen, n)
 
-def pbe_critic(task_description, tests, debug_template='Make sure {i} -> {o}'):
-    def critic(program):
-        test_runs = program.test(tests)
-        return write_debug_prompt(test_runs, debug_template, task_description)
-    return critic
-
-def print_program(program, **vars):
+def print_code(code, **vars):
     print(vars)
-    print(program.read())
+    print(code)
 
 def develop(task_description, 
             examples,
-            critic,
+            critics,
             language='C++',
             beam_width=3,
             branching_factor=10,
             max_programs=None,
             log_metrics=print,
-            log_attempt=print_program,
+            log_attempt=print_code,
             log_solution=lambda *args, **kwargs: print('This program is the best!'),
             log_gpt_call=lambda *args, **kwargs: print(kwargs),
             batch_size=10):
@@ -129,66 +121,72 @@ def develop(task_description,
     more tests than the previous one. The last program in the generator
     passes all tests.
     """
-    def initial_candidate(code):
-        program = Program(code, language=language)
-        return task_description, program, critic(program)
 
     def have_kids(candidate):
         logging.debug(f'Running debug_and_test')
-        prompt, program, feedback = candidate
+        prompt, code, evals = candidate
+        worst_eval = min(evals, key=lambda e: e.score())
+        feedback = worst_eval.pen_report()
         
-        for code in debug(program.read(), feedback,
+        for code in debug(code, feedback,
                           n=branching_factor, batch_size=batch_size,
                           log_gpt_call=log_gpt_call):
-            program = Program(code, language=language)
-            yield feedback, program, critic(program)
+            yield feedback, code, [critic(code) for critic in critics]
 
     def metric(candidate):
-        prompt, program, feedback = candidate
-        return program.avg_score
+        prompt, code, evals = candidate
+        avg_score = sum(e.score() for e in evals) / len(evals)
+        return avg_score
     
     beam = draft(task_description, examples, language, batch_size=batch_size, 
                  limit_n=beam_width, log_gpt_call=log_gpt_call)
-    beam = map(initial_candidate, beam)
+    beam = [(task_description, code, [critic(code) for critic in critics])
+            for code in beam]
     
     best_score = float('-inf')
 
-    for idx, candidate in enumerate(beam_search(beam, have_kids, metric, beam_width)):
-        prompt, program, feedback = candidate
+    search = beam_search(beam, have_kids, metric, beam_width)
+    for idx, candidate in enumerate(search):
+        prompt, code, evals = candidate
 
-        logging.info(f'Current program:\n{program.read()}')
+        avg_score = sum(e.score() for e in evals) / len(evals)
+        test_pass_rate = sum(e.check() for e in evals) / len(evals)
+
+        logging.info(f'Current program:\n{code}')
 
         metrics = {
             'idx': idx,
-            'avg_score': program.avg_score,
-            'pass_rate': program.pass_rate,
+            'avg_score': avg_score,
+            'pass_rate': test_pass_rate
         }
 
         log_metrics(metrics)
-        log_attempt(program, idx=idx, 
-                    prompt=prompt, test_pass_rate=program.pass_rate)
+        log_attempt(code, idx=idx, 
+                    prompt=prompt, test_pass_rate=test_pass_rate)
 
-        if program.avg_score > best_score:
-            best_score = program.avg_score
+        if avg_score > best_score:
+            best_score = avg_score
             log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
-            log_solution(program, idx=idx, 
-                         prompt=prompt, test_pass_rate=program.pass_rate)
+            log_solution(code, idx=idx, 
+                         prompt=prompt, test_pass_rate=test_pass_rate)
 
-            if program.avg_score == 1:
+            if test_pass_rate == 1:
                 break
 
         if max_programs is not None and (idx == max_programs - 1):
             break
 
-    return program
+    return code
 
 
 if __name__ == '__main__':
+    from seidr.eval import IOMatch
+
     task = 'A program that outputs "Hello World"'
-    examples = [
-        ([''], ['Hello World'])
-    ]
 
     # Use the same IO examples for prompt and tests
-    critic = pbe_critic(task, examples)
-    develop(task, examples, critic)
+    critics = [
+        lambda code: IOMatch(code, language='Python', 
+                             input=[''], output=['Hello World'])
+    ]
+    develop(task, [[[''], ['Hello, World']]], critics, language='Python')

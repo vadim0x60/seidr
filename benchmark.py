@@ -6,8 +6,9 @@ import pandas as pd
 import psb2
 import wandb
 from seidr import get_template
-from seidr.dev import develop, pbe_critic
-from seidr.github import ProgramLogger
+from seidr.dev import develop
+from seidr.eval import IOMatch, UnitTest
+from seidr.github import FileLogger
 from fire import Fire
 from more_itertools import chunked
 from programlib import Program
@@ -36,9 +37,11 @@ pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
                                    sep='\t', index_col=['Problem'])
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
-def is_already_solved(solutions_logger, test_data):
+def is_already_solved(solutions_logger, test_data, language):
     try:
-        return solutions_logger.current().test(test_data) == 1.0
+        return Program(workdir=solutions_logger.dir,
+                       name=solutions_logger.filename,
+                       language=language).test(test_data)
     except FileNotFoundError:
         return False
 
@@ -111,14 +114,12 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}_dev'
     solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}'
 
-    attempts_logger = ProgramLogger(branch=attempts_branch, 
-                                    name=problem,
-                                    language=language,
-                                    commit_msg_template=commit_msg_template)
-    solutions_logger = ProgramLogger(branch=solutions_branch,
-                                     name=problem,
-                                     language=language,
-                                     commit_msg_template=commit_msg_template)
+    attempts_logger = FileLogger(branch=attempts_branch, 
+                                 filename=language.source.format(name=problem),
+                                 commit_msg_template=commit_msg_template)
+    solutions_logger = FileLogger(branch=solutions_branch,
+                                  filename=language.source.format(name=problem),
+                                  commit_msg_template=commit_msg_template)
 
     description = task_descriptions[problem]
     debug_template = debug_templates[debug_prompt_id]
@@ -139,7 +140,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                 with open(Path('solutions') / filename, 'w') as f:
                     f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
-    if is_already_solved(solutions_logger, test_data):
+    if is_already_solved(solutions_logger, test_data, language):
         logging.info(f'{problem} is already solved, shutting down')
         return
 
@@ -149,8 +150,13 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         wandb.log({'gpt_calls': call_count})
         call_count += 1
 
-    critic = pbe_critic(description, valid_data, debug_template)
-    solution = develop(description, prompt_data, critic,
+    critics = [
+        lambda code: IOMatch(code, language=language, input=inp, output=out,
+                             debug_template=debug_template, 
+                             task_description=description)
+        for inp, out in valid_data
+    ]
+    solution = develop(description, prompt_data, critics,
                        language=language,
                        beam_width=beam_width,
                        branching_factor=branching_factor,
@@ -162,10 +168,12 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                        batch_size=min(batch_size, branching_factor))
 
     logging.info('Development done. Testing...')
-    solution.test(test_data)
-    wandb.log({'test_avg_score': solution.avg_score,
-               'test_pass_rate': solution.pass_rate})
+    program = Program(solution, language=language)
+    program.test(test_data)
+    wandb.log({'test_avg_score': program.avg_score,
+               'test_pass_rate': program.pass_rate})
     run.finish()
+
 
 if __name__ == '__main__':
     try:
