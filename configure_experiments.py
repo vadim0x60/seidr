@@ -19,9 +19,9 @@ bf_experiments = [
      'beam_width': branching_factor,
      'debug_prompt_id': 0,
      'log': 'INFO'}
+    for branching_factor in (2, 4, 16, 1, 10, 100)
     for problem in task_descriptions.keys()
     for language in ('C++', 'Python')
-    for branching_factor in (2, 4, 16)
 ]
 
 experiments = bf_experiments

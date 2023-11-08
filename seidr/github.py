@@ -5,7 +5,7 @@ May be nice to include this into programlib one day
 
 import git
 import gitdb
-from git import GitError
+from git import GitError, NoSuchPathError
 from git import Repo
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
@@ -36,7 +36,11 @@ def upload_file(repo, filename, message=None):
     repo.index.add(filename)
     repo.index.commit(message)
     pullpush(repo)
-    logging.info(f'Tried to push updates to git. \nCommit message: {message}')
+    commit_url = repo.remotes.origin.url + "/commit/" + repo.head.commit.hexsha
+    commit_url = 'https://' + commit_url[commit_url.find('@github.com') + 1:]
+    logging.info(f'Tried to push updates to git repo.\n'
+                 f'See commit at {commit_url}. \n'
+                 f'Commit message: {message}')
 
 
 def ensure_repo(remote, path, branch=None):
@@ -45,13 +49,16 @@ def ensure_repo(remote, path, branch=None):
 
         if branch:
             repo.git.checkout(branch)
-    except GitError:
+    except GitError as e:
+        logging.info(f'Git error in ensure repo {e}')
         shutil.rmtree(path, ignore_errors=True)
         repo = Repo.clone_from(remote, path)
 
         if branch:
-            branches = [ref.name for ref in repo.references]
+
             repo.git.fetch('--all')
+            branches = [ref.name for ref in repo.references]
+
             if f'{repo.remote().name}/{branch}' in branches:
                 repo.git.checkout(branch)
             else:
@@ -90,10 +97,10 @@ class FileLogger:
          self.repo = config_repo(self.dir, branch=branch)
          os.makedirs(self.dir, exist_ok=True)
 
-    def current(self):
-        return Program(workdir=self.dir, 
-                       name=self.name, 
-                       language=self.language)    
+    # def current(self):
+    #     return Program(workdir=self.dir,
+    #                    name=self.filename,
+    #                    language=self.language)
 
     def log(self, content, **vars):
         with open(self.dir / self.filename, 'w') as f:

@@ -177,6 +177,8 @@ def develop(task_description,
         avg_score = sum(e.score() for e in evals) / len(evals)
         test_pass_rate = sum(e.check() for e in evals) / len(evals)
 
+        logging.info(f'Current program:\n{code}')
+
         metrics = {
             'idx': idx,
             'avg_score': avg_score,
@@ -196,7 +198,7 @@ def develop(task_description,
             if test_pass_rate == 1:
                 break
 
-        if max_programs is not None and (idx > max_programs):
+        if max_programs is not None and (idx == max_programs - 1):
             break
 
     return code
