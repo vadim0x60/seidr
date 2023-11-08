@@ -61,13 +61,16 @@ class UnitTest(Evaluation):
         super().__init__(program)
         self.output = None
 
-    def run_test(self):
-        self.output = self.SUT.run(force=True)
+    def run_test(self, rerun=True):
+        if rerun or not self.output:
+            self.output = self.SUT.run(force=True)
 
     def score(self):
+        self.run_test(rerun=False)
         return not self.SUT.exit_status
 
     def pen_report(self):
+        self.run_test(rerun=False)
         if self.score():
             return dont_change
         else:
