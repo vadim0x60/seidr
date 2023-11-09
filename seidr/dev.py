@@ -93,8 +93,7 @@ def print_code(code, **vars):
     print(code)
 
 def develop(task_description,
-            start,
-            # examples,
+            start_prompt,
             critics,
             language='C++',
             beam_width=3,
@@ -137,7 +136,7 @@ def develop(task_description,
         avg_score = sum(e.score() for e in evals) / len(evals)
         return avg_score
 
-    beam = draft(task_description, start, batch_size=batch_size,
+    beam = draft(task_description, start_prompt, batch_size=batch_size,
                  limit_n=beam_width, log_gpt_call=log_gpt_call)
     beam = [(task_description, code, [critic(code) for critic in critics])
             for code in beam]

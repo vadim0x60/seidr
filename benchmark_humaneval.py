@@ -167,7 +167,7 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
     description = "Complete the following code given the task description and function signature."
 
     solution = develop(task_description=description,
-                       start=start_prompt,
+                       start_prompt=start_prompt,
                        critics=validation_critics,
                        language=language,
                        beam_width=beam_width,

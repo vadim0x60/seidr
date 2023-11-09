@@ -166,7 +166,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     start_prompt = start_coding(prompt, language=language)
 
     solution = develop(task_description=description,
-                       start=start_prompt,
+                       start_prompt=start_prompt,
                        # prompt_data,
                        critics=critics,
                        language=language,
