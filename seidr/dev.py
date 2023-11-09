@@ -98,13 +98,11 @@ def distribute_heat(heat, n, batch_size):
     return t, delta_t
 
 
-def draft(task_description, examples, language, batch_size=10, limit_n=None, 
+def draft(task_description, start_prompt, batch_size=10, limit_n=None,
           log_gpt_call=lambda **kwargs: print(kwargs)):
     t, delta_t = distribute_heat(1, limit_n, batch_size)
         
-    prompt = initial_prompt(task_description, examples)
-    start = start_coding(prompt, language=language)
-    codes = explore_gpt(source=start, instruction=task_description, modality='code',
+    codes = explore_gpt(source=start_prompt, instruction=task_description, modality='code',
                         batch_size=batch_size, 
                         t=t, 
                         delta_t=delta_t,
@@ -132,8 +130,8 @@ def print_code(code, **vars):
     print(vars)
     print(code)
 
-def develop(task_description, 
-            examples,
+def develop(task_description,
+            start_prompt,
             critics,
             language='C++',
             beam_width=3,
@@ -172,7 +170,7 @@ def develop(task_description,
                           log_gpt_call=log_gpt_call):
             yield feedback, code, [critic(code) for critic in critics]
     
-    beam = draft(task_description, examples, language, batch_size=batch_size, 
+    beam = draft(task_description, start_prompt, batch_size=batch_size, 
                  limit_n=beam_width, log_gpt_call=log_gpt_call)
     beam = ((task_description, code, [critic(code) for critic in critics])
             for code in beam)

@@ -67,11 +67,12 @@ class UnitTest(Evaluation):
 
     def score(self):
         self.run_test(rerun=False)
-        return not self.SUT.exit_status
+        return not self.SUT.exitstatus
 
     def pen_report(self):
         self.run_test(rerun=False)
         if self.score():
             return dont_change
         else:
-            return self.output
+             self.output = "\n".join(self.output) if type(self.output) == list else self.output
+             return self.output
