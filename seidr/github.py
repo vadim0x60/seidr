@@ -90,7 +90,7 @@ class FileLogger:
 
     def __init__(self, branch, filename, commit_msg_template='{message}'):
          os.makedirs('solutions', exist_ok=True)
-         self.filename = filename
+         self.filename = filename.replace("/", "_")
          self.commit_msg_template = commit_msg_template
          cache_dir = branch + '_' + str(uuid4())[:6]
          self.dir = Path('solutions') / cache_dir
