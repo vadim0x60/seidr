@@ -181,15 +181,15 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
 
     logging.info('Development done. Testing...')
 
-    test_scores = [
+    test_evals = [
         IOMatch(solution,
                 language=language,
                 input=inp, output=out,
                 debug_template=debug_template,
-                task_description=description).score()
+                task_description=description)
         for inp, out in valid_data]
-    avg_score = sum(test_scores) / len(test_scores)
-    test_pass_rate = sum([1 for i in range(len(test_scores)) if test_scores[i] == 1.]) / len(test_scores)
+    avg_score = sum(e.score() for e in test_evals) / len(test_evals)
+    test_pass_rate = sum(e.check() for e in test_evals) / len(test_evals)
 
     wandb.log({'test_avg_score': avg_score,
                'test_pass_rate': test_pass_rate})

@@ -164,11 +164,10 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
         lambda code: UnitTest(code, language, test) for test in valid_data
     ]
 
-    description = "Complete the following code given the docstring and function signature"
+    description = "Complete the following code given the task description and function signature."
 
     solution = develop(task_description=description,
                        start=start_prompt,
-                       # prompt_data,
                        critics=validation_critics,
                        language=language,
                        beam_width=beam_width,
@@ -181,9 +180,9 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
                        batch_size=min(batch_size, branching_factor))
 
     logging.info('Development done. Testing...')
-    test_scores = [UnitTest(solution, language, test).score() for test in valid_data]
-    avg_score = sum(test_scores) / len(test_scores)
-    test_pass_rate = sum([1 for i in range(len(test_scores)) if test_scores[i] == 1.]) / len(test_scores)
+    test_evals = [UnitTest(solution, language, test) for test in valid_data]
+    avg_score = sum(e.score() for e in test_evals) / len(test_evals)
+    test_pass_rate = sum(e.check() for e in test_evals) / len(test_evals)
 
     wandb.log({'test_avg_score': avg_score,
                'test_pass_rate': test_pass_rate})
