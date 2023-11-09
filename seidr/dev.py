@@ -165,8 +165,8 @@ def develop(task_description,
     
     beam = draft(task_description, examples, language, batch_size=batch_size, 
                  limit_n=beam_width, log_gpt_call=log_gpt_call)
-    beam = [(task_description, code, [critic(code) for critic in critics])
-            for code in beam]
+    beam = ((task_description, code, [critic(code) for critic in critics])
+            for code in beam)
     
     best_score = float('-inf')
 
