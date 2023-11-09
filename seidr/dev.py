@@ -23,49 +23,55 @@ def rolling_best(objects, max_score=1, metric=lambda x: x):
         if best_score >= max_score:
             break
 
-def standard_ranking(programs):
+def standard_ranking(candidates):
     def avg_score(candidate):
         prompt, code, evals = candidate
         score = sum(e.score() for e in evals) / len(evals)
         return score
 
-    return sorted(programs, key=avg_score, reverse=True)
+    return sorted(candidates, key=avg_score, reverse=True)
 
-def lexicase_ranking(candidates, case_count):
-    cases = random.shuffle(range(case_count))
+def lexicase_ranking(candidates):
+    pool = [evals for prompt, code, evals in candidates]
+
+    case_count = min(len(evals) for evals in pool)
+    cases = list(range(case_count))
+    random.shuffle(cases)
+
     for case_order in itertools.combinations(cases, case_count):
         # Pseudocode from page 3 of
         # Spector 2012 "Assessment of problem modality by differential performance of lexicase selection in genetic programming: a preliminary report"
-        candidates = list(programs)
+        round_winners = range(len(pool))
 
         # Loop until a single candidate is left
         # Reversing case_order ensures diversity: the first case is always different
         for case in reversed(case_order):
-            fitnesses = [evals[case].score() for _, _, evals in candidates]
+            fitnesses = [pool[idx][case].score() for idx in round_winners]
             best_fitness = max(fitnesses)
 
-            candidates = [(prompt, code, evals) 
-                          for prompt, code, evals in candidates 
-                          if evals[case].score() == best_fitness]
-
-            # If there's only one candidate left, return it
-            if len(candidates) == 1:
-                yield candidates[0]
+            round_winners = [idx for idx, fitness 
+                             in zip(round_winners, fitnesses) 
+                             if fitness == best_fitness]
+            
+            if len(round_winners) == 1:
                 break
+
+        for idx in round_winners:
+            yield candidates[idx]
+        for idx in round_winners:
+            del candidates[idx]
 
 def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
     new_beam = []
 
     # yield beam_width draft (non-repaired) programs
-    for code in beam:
-        yield code
-        new_beam.append(code)
+    for candidate in beam:
+        yield candidate
+        new_beam.append(candidate)
 
     while True:
-        beam = ranking(beam)[:beam_width]
-        if len(beam) == 0:
-            break
+        beam = itertools.islice(ranking(new_beam), beam_width)
         new_beam = []
 
         # yield beam_width * branching_factor children (repaired programs)
@@ -74,6 +80,8 @@ def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
                 yield child
                 new_beam.append(child)
 
+        if len(new_beam) == 0:
+            break
 
 def distribute_heat(heat, n, batch_size):
     if n == 1:
