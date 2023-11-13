@@ -1,7 +1,9 @@
 import itertools
 import logging
+import os
+from programlib import Program
 
-from seidr.gpt import explore_gpt
+from seidr.llm import explore_gpt, explore_llm
 from seidr.prompt import initial_prompt, write_debug_prompt, start_coding
 
 
@@ -70,6 +72,16 @@ def draft(task_description, start, batch_size=10, limit_n=None,
                         delta_t=delta_t,
                         log_gpt_call=log_gpt_call)
 
+    codes = explore_llm(
+        temperature=t,
+        mode="generate",
+        model_name="codellama:7b-instruct", #TODO get it from somewhere
+        language=language,
+        problem_name=problem_name,  #TODO get it from somewhere
+        start_code=start,
+        task_description=task_description
+    )
+
     if limit_n:
         codes = itertools.islice(codes, limit_n)
 
@@ -86,6 +98,18 @@ def debug(code, debug_prompt_text, n, batch_size=10, log_gpt_call=print):
                           batch_size=batch_size,
                           t=t, delta_t=delta_t,
                           log_gpt_call=log_gpt_call)
+
+    code = explore_llm(
+        language=language, #TODO get it from somewhere
+        tempearture=t, # TODO what to do with delta_t
+        mode="repair",
+        model_name="codellama:7b-instruct",  #TODO get it from somewhere
+        problem_name=problem_name, #TODO get it from somewhere
+        code=code,
+        bug_summary=debug_prompt_text,
+        task_description=task_description
+    )
+
     return itertools.islice(codegen, n)
 
 def print_code(code, **vars):
