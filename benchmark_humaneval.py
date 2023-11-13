@@ -143,7 +143,7 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
     random.seed(seed)
 
     start_prompt, tests, canonical_solution = load_humaneval_problem(
-        pathlib.Path(DATA_PATH), language.name, problem
+        pathlib.Path(DATA_PATH) / "humaneval", language.name, problem
     )
 
     prompt_data = tests[:min(prompt_examples, len(tests))]
