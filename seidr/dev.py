@@ -215,11 +215,13 @@ def develop(task_description,
 if __name__ == '__main__':
     from seidr.eval import IOMatch
 
-    task = 'A program that outputs "Hello World"'
-
-    # Use the same IO examples for prompt and tests
-    critics = [
-        lambda code: IOMatch(code, language='Python', 
-                             input=[''], output=['Hello World'])
-    ]
-    develop(task, [[[''], ['Hello, World']]], critics, language='Python')
+    for language in ('Python', 'C++'):
+        # Use the same IO examples for prompt and tests
+        critics = [
+            lambda code: IOMatch(code, language=language, 
+                                input=[''], output=['Hello World'])
+        ]
+        develop(task_description='A Python program that outputs "Hello World"', 
+                start_prompt=None,
+                critics=critics, 
+                language=language)
