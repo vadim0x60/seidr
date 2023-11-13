@@ -221,7 +221,7 @@ if __name__ == '__main__':
             lambda code: IOMatch(code, language=language, 
                                 input=[''], output=['Hello World'])
         ]
-        develop(task_description='A Python program that outputs "Hello World"', 
+        develop(task_description=f'A {language} program that outputs "Hello World"', 
                 start_prompt=None,
                 critics=critics, 
                 language=language)
