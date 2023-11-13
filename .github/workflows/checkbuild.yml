@@ -1,0 +1,15 @@
+on: 
+  pullrequest:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+      - name: Build and publish to pypi
+        uses: JRubics/poetry-publish@master
+        with:
+          pypi_token: ${{ secrets.PYPI_TOKEN }}
+          repository_name: "testpypi"
+          repository_url: "https://test.pypi.org/legacy/"
