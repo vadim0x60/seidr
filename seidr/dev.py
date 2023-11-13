@@ -39,6 +39,7 @@ def lexicase_ranking(candidates):
     random.shuffle(cases)
 
     for case_order in itertools.combinations(cases, case_count):
+        logging.info(f"Lexicase: test case order {reversed(case_order)}")
         # Pseudocode from page 3 of
         # Spector 2012 "Assessment of problem modality by differential performance of lexicase selection in genetic programming: a preliminary report"
         round_winners = range(len(pool))
@@ -47,11 +48,18 @@ def lexicase_ranking(candidates):
         # Reversing case_order ensures diversity: the first case is always different
         for case in reversed(case_order):
             fitnesses = [pool[idx][case].score() for idx in round_winners]
+            logging.info(f"Lexicase: "
+                         f"idx: fitness values"
+                         f"(test pass rates of all candidate programs on test {case})"
+                         f"{[':'.join([str(idx), str(fitness)]) for idx, fitness in zip(round_winners, fitnesses)]}")
             best_fitness = max(fitnesses)
 
             round_winners = [idx for idx, fitness 
                              in zip(round_winners, fitnesses) 
                              if fitness == best_fitness]
+
+            logging.info(f"Lexicase: "
+                         f"programs that have max test pass rate of value {best_fitness} on test {case}) {round_winners}")
             
             if len(round_winners) == 1:
                 break
