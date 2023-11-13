@@ -1,6 +1,8 @@
 """Create a separate file with a list of experiments and their Slurm task id's"""
 import argparse
 import logging
+import os
+
 import pandas as pd
 import traceback
 
@@ -24,7 +26,29 @@ bf_experiments = [
     for language in ('C++', 'Python')
 ]
 
-experiments = bf_experiments
+humaneval_task_ids = {
+    "c++": [f"CPP/{i}" for i in range(164)],
+    "python": [f"Python/{i}" for i in range(164)]
+}
+
+
+bf_experiments_humaneval = []
+
+for language in ["Python"]:# ["C++", "Python"]:
+    bf_experiments_humaneval += [
+        {'problem': problem,
+         'language': language,
+         'branching_factor': branching_factor,
+         'max_programs': 100,
+         'beam_width': branching_factor,
+         'debug_prompt_id': 0,
+         'log': 'INFO',
+         'dataset': 'humaneval'}
+        for branching_factor in (2, 4, 16, 1, 10, 100)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+experiments = bf_experiments_humaneval
 
 
 def update_experiments_list(input_file: Path | str, experiments: list[dict[str, Any]]):
