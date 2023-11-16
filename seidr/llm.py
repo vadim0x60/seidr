@@ -10,6 +10,7 @@ from black import format_str, FileMode
 from pytest_codeblocks import extract_from_buffer
 from io import StringIO
 
+from programlib import Language, language_
 from seidr.prompt import create_chat_prompt_template
 
 token_error_message = 'tokens for the input and instruction but the maximum allowed is 3000. ' \
@@ -34,12 +35,10 @@ def create_ollama_chain(
 
 def extract_code(
         message_content: str,
-        language: str,
+        language: Language | str,
         mode: str = "full"
 ) -> str:
     """Extract code out of a message and (if Python) format it with black"""
-
-    print(message_content)
 
     code_blocks = list(extract_from_buffer(StringIO(message_content)))
     for code_block in code_blocks:
@@ -52,7 +51,7 @@ def extract_code(
     else:
         raise ValueError("The message contains more than one code block")
 
-    if language.lower() == "python":
+    if language_(language).name == "Python":
         code = run_black(code)
 
     return code.strip()
@@ -86,7 +85,7 @@ def create_chain(temperature: float = 0.,
 
 
 def query_llm(
-        language: str,
+        language: Language | str,
         temperature: float = 0.,
         mode: str = "generate",
         model_name: str = "codellama:7b-instruct",
@@ -109,22 +108,15 @@ def query_llm(
 
 
 def explore_llm(
-        language: str,
+        language: Language | str,
         log_llm_call: Callable = lambda **kwargs: None,
         mode: str = "generate",
         model_name: str = "codellama:7b-instruct",
         t: float = 0.0,
         delta_t: float = 0.2,
-        batch_size: int = None,
+        batch_size: int = 1,
         **kwargs
 ) -> Iterable[str]:
-    if not batch_size:
-        if 'gpt' in model_name:
-            batch_size = 10
-        else:
-            # Because Ollama doesn't support batch inference
-            batch_size = 1
-
     while t <= 1:
         log_llm_call(**locals())
         yield from query_llm(
@@ -152,7 +144,7 @@ if __name__ == '__main__':
 
     for model_name in ['codellama:34b-instruct', 'gpt-3.5-turbo']:
         for code in itertools.islice(explore_llm(language='Python', 
-                                                problem_name='fizz-buzz', 
+                                                task_name='fizz-buzz', 
                                                 task_description=fizz_buzz, 
                                                 start_code='', 
                                                 model_name=model_name), 10):

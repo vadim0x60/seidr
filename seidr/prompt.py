@@ -8,8 +8,6 @@ from string import Template
 from programlib import language_
 from seidr import get_template
 
-dont_change = 'Do not change anything'
-
 def initial_prompt(task_description, examples):
     prompt = task_description
     prompt += '\nFor example,'
@@ -33,7 +31,7 @@ def llm_assisted_bug_summary(debug_prompt_text, task_description, input, expecte
         tempearture=t,  # TODO what to do with delta_t
         mode="explain_bugs",
         model_name="codellama:7b-instruct",  # TODO get it from somewhere
-        problem_name=problem_name,  # TODO get it from somewhere
+        task_name=task_name,  # TODO get it from somewhere
         code=code, # TODO get it from somewhere
         input=input,
         output=expected_output,
@@ -83,16 +81,16 @@ You write concise code in {language}. \
 The code must read input from user and return output corresponding to the task description."""
 
 HUMAN_PROMPTS = {
-    "generate": "Solve the following code contest problem: {problem_name}. "
+    "generate": "Solve the following code contest problem: {task_name}. "
                 "Problem description: {task_description}.\n"
                 "{start_code}\n"
                 "Only complete the code, do not add triple quotes, do not give explanations.",
-    "explain_bugs": "I'm trying to solve the following code contest problem: {problem_name}. "
+    "explain_bugs": "I'm trying to solve the following code contest problem: {task_name}. "
                     "Problem description: {task_description}.\n"
                     "Currently, the code is \n```\n{code}\n``` \n"
-                    "It must return {output} for input {input}, but it returns {wrong_output}. "
+                    "The problem is {problem}\n"
                     "Describe how I should fix the code in a very concise manner.",
-    "repair": "Solve the following code contest problem: problem: {problem_name}. "
+    "repair": "Solve the following code contest problem: problem: {task_name}. "
               "Problem description: {task_description}.\n"
               "Currently, the code is \n```\n{code}\n``` \n"
               "Modify the code as  {bug_summary}.\n"

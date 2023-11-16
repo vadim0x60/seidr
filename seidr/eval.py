@@ -1,6 +1,7 @@
 from abc import ABC
 from programlib import Program
-from seidr.prompt import write_debug_prompt, dont_change
+
+dont_change = 'Do not change anything'
 
 class Evaluation(ABC):
     """
@@ -51,9 +52,15 @@ class IOMatch(Evaluation):
 
     def pen_report(self):
         self.run_test(rerun=False)
-        return write_debug_prompt(self.test_run, 
-                                  self.debug_template, 
-                                  self.task_description)
+
+        if self.check():
+            return dont_change
+        else:
+            input = '\n'.join(self.test_run.input_lines)
+            expected_output = '\n'.join(self.test_run.expected_output_lines)
+            output = '\n'.join(self.test_run.output_lines)
+            return  f"it must return {expected_output} for input {input}, but it returns {output}. "
+                    
 
 class UnitTest(Evaluation):
     def __init__(self, code, language, test):
@@ -68,10 +75,13 @@ class UnitTest(Evaluation):
     def score(self):
         self.run_test(rerun=False)
         return not self.SUT.exitstatus
+    
+    def check(self):
+        return self.score()
 
     def pen_report(self):
         self.run_test(rerun=False)
-        if self.score():
+        if self.check():
             return dont_change
         else:
              self.output = "\n".join(self.output) if type(self.output) == list else self.output

@@ -5,16 +5,16 @@ import traceback
 import pandas as pd
 import psb2
 import wandb
-from seidr import get_template
-from seidr.dev import develop
-from seidr.eval import IOMatch, UnitTest
-from seidr.github import FileLogger
+
 from fire import Fire
 from more_itertools import chunked
 from programlib import Program
 from programlib import language_
 from pathlib import Path
 
+from seidr import SEIDR, get_template
+from seidr.eval import IOMatch, UnitTest
+from seidr.github import FileLogger
 from seidr.prompt import start_coding, initial_prompt
 
 logger = logging.getLogger(__name__)
@@ -50,10 +50,11 @@ def is_already_solved(solutions_logger, test_data, language):
         return False
 
 
-def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
+def run_benchmark(problem='fizz-buzz', language='C++', tree_arity=100,
                   max_programs=1000, beam_width=100, debug_prompt_id=0,
                   seed=42, valid_examples=100, test_examples=2000,
                   prompt_examples=5, batch_size=10, mode='execute', log='ERROR',
+                  model_name='gpt-3.5-turbo',
                   **kwargs):
     """Generate and repair programs in PSB2
 
@@ -63,7 +64,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         name of a problem in PSB 2
     language : str
         programming language
-    branching_factor : int
+    tree_arity : int
         number of leaves to create at level n+1
         from each current leaf at level n in the beam
     max_programs : int
@@ -91,6 +92,8 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         for one parent during the beam search
     mode : str
         'execute' or 'debug'
+    model_name : str
+        name of the OpenAI or Ollama model to use
     """
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
@@ -116,8 +119,8 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         problem=problem,
         wandb_url=run.url)
 
-    attempts_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}_dev'
-    solutions_branch = f'bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}'
+    attempts_branch = f'bf{tree_arity}_promptid{debug_prompt_id}_maxprograms{max_programs}_dev'
+    solutions_branch = f'bf{tree_arity}_promptid{debug_prompt_id}_maxprograms{max_programs}'
 
     attempts_logger = FileLogger(branch=attempts_branch,
                                  filename=language.source.format(name=problem),
@@ -151,7 +154,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
 
     call_count = 0
 
-    def log_gpt_call(**kwargs):
+    def log_llm_call(**kwargs):
         nonlocal call_count
         wandb.log({'gpt_calls': call_count})
         call_count += 1
@@ -163,21 +166,25 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         for inp, out in valid_data
     ]
     prompt = initial_prompt(description, prompt_data)
-    start_prompt = start_coding(prompt, language=language)
+    start_code = start_coding(prompt, language=language)
 
-    solution = develop(task_description=description,
-                       start_prompt=start_prompt,
-                       # prompt_data,
-                       critics=critics,
-                       language=language,
-                       beam_width=beam_width,
-                       branching_factor=branching_factor,
-                       max_programs=max_programs,
-                       log_metrics=wandb.log,
-                       log_attempt=attempts_logger,
-                       log_solution=solutions_logger,
-                       log_gpt_call=log_gpt_call,
-                       batch_size=min(batch_size, branching_factor))
+    seidr = SEIDR(
+        task_name = problem,
+        task_description = description, 
+        critics = critics,
+        model_name = model_name,
+        language = language,
+        beam_width = beam_width,
+        tree_arity = tree_arity,
+        log_metrics = wandb.log,
+        log_attempt = attempts_logger,
+        log_solution = solutions_logger,
+        log_llm_call = log_llm_call,
+        max_programs = max_programs,
+        batch_size = min(batch_size, tree_arity)
+    )
+
+    solution = seidr.develop(start_code=start_code)
 
     logging.info('Development done. Testing...')
 
