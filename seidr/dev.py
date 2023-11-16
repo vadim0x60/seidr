@@ -3,7 +3,7 @@ import logging
 import os
 from programlib import Program
 
-from seidr.llm import explore_gpt, explore_llm
+from seidr.llm import explore_llm
 from seidr.prompt import initial_prompt, write_debug_prompt, start_coding
 
 
