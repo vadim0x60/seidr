@@ -63,7 +63,10 @@ class UnitTest(Evaluation):
 
     def run_test(self, rerun=True):
         if rerun or not self.output:
-            self.output = self.SUT.run(force=True)
+            if self.SUT.compile_error:
+                self.output = self.SUT.term.emulate(self.SUT.stdout)
+            else:
+                self.output = self.SUT.run(force=True)
 
     def score(self):
         self.run_test(rerun=False)

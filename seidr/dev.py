@@ -1,5 +1,7 @@
 import itertools
 import logging
+import itertools
+import random
 
 from seidr.gpt import explore_gpt
 from seidr.prompt import initial_prompt, write_debug_prompt, start_coding
@@ -21,21 +23,63 @@ def rolling_best(objects, max_score=1, metric=lambda x: x):
         if best_score >= max_score:
             break
 
+def standard_ranking(candidates):
+    def avg_score(candidate):
+        prompt, code, evals = candidate
+        score = sum(e.score() for e in evals) / len(evals)
+        return score
 
-def beam_search(beam, update, metric, beam_width=100):
+    return sorted(candidates, key=avg_score, reverse=True)
+
+def lexicase_ranking(candidates):
+    pool = [evals for prompt, code, evals in candidates]
+
+    case_count = min(len(evals) for evals in pool)
+    cases = list(range(case_count))
+    random.shuffle(cases)
+
+    for case_order in itertools.combinations(cases, case_count):
+        logging.info(f"Lexicase: test case order {reversed(case_order)}")
+        # Pseudocode from page 3 of
+        # Spector 2012 "Assessment of problem modality by differential performance of lexicase selection in genetic programming: a preliminary report"
+        round_winners = range(len(pool))
+
+        # Loop until a single candidate is left
+        # Reversing case_order ensures diversity: the first case is always different
+        for case in reversed(case_order):
+            fitnesses = [pool[idx][case].score() for idx in round_winners]
+            logging.info(f"Lexicase: "
+                         f"idx: fitness values"
+                         f"(test pass rates of all candidate programs on test {case})"
+                         f"{[':'.join([str(idx), str(fitness)]) for idx, fitness in zip(round_winners, fitnesses)]}")
+            best_fitness = max(fitnesses)
+
+            round_winners = [idx for idx, fitness 
+                             in zip(round_winners, fitnesses) 
+                             if fitness == best_fitness]
+
+            logging.info(f"Lexicase: "
+                         f"programs that have max test pass rate of value {best_fitness} on test {case}) {round_winners}")
+            
+            if len(round_winners) == 1:
+                break
+
+        for idx in round_winners:
+            yield candidates[idx]
+        for idx in round_winners:
+            del candidates[idx]
+
+def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
-
     new_beam = []
 
     # yield beam_width draft (non-repaired) programs
-    for code in beam:
-        yield code
-        new_beam.append(code)
+    for candidate in beam:
+        yield candidate
+        new_beam.append(candidate)
 
     while True:
-        beam = sorted(new_beam, key=metric, reverse=True)[:beam_width]
-        if len(beam) == 0:
-            break
+        beam = itertools.islice(ranking(new_beam), beam_width)
         new_beam = []
 
         # yield beam_width * branching_factor children (repaired programs)
@@ -44,6 +88,8 @@ def beam_search(beam, update, metric, beam_width=100):
                 yield child
                 new_beam.append(child)
 
+        if len(new_beam) == 0:
+            break
 
 def distribute_heat(heat, n, batch_size):
     if n == 1:
@@ -60,11 +106,11 @@ def distribute_heat(heat, n, batch_size):
     return t, delta_t
 
 
-def draft(task_description, start, batch_size=10, limit_n=None,
+def draft(task_description, start_prompt, batch_size=10, limit_n=None,
           log_gpt_call=lambda **kwargs: print(kwargs)):
     t, delta_t = distribute_heat(1, limit_n, batch_size)
         
-    codes = explore_gpt(source=start, instruction=task_description, modality='code',
+    codes = explore_gpt(source=start_prompt, instruction=task_description, modality='code',
                         batch_size=batch_size, 
                         t=t, 
                         delta_t=delta_t,
@@ -98,6 +144,7 @@ def develop(task_description,
             language='C++',
             beam_width=3,
             branching_factor=10,
+            lexicase=False,
             max_programs=None,
             log_metrics=print,
             log_attempt=print_code,
@@ -130,20 +177,16 @@ def develop(task_description,
                           n=branching_factor, batch_size=batch_size,
                           log_gpt_call=log_gpt_call):
             yield feedback, code, [critic(code) for critic in critics]
-
-    def metric(candidate):
-        prompt, code, evals = candidate
-        avg_score = sum(e.score() for e in evals) / len(evals)
-        return avg_score
-
-    beam = draft(task_description, start_prompt, batch_size=batch_size,
+    
+    beam = draft(task_description, start_prompt, batch_size=batch_size, 
                  limit_n=beam_width, log_gpt_call=log_gpt_call)
-    beam = [(task_description, code, [critic(code) for critic in critics])
-            for code in beam]
+    beam = ((task_description, code, [critic(code) for critic in critics])
+            for code in beam)
     
     best_score = float('-inf')
 
-    search = beam_search(beam, have_kids, metric, beam_width)
+    ranking = lexicase_ranking if lexicase else standard_ranking
+    search = beam_search(beam, have_kids, ranking, beam_width)
     for idx, candidate in enumerate(search):
         prompt, code, evals = candidate
 
@@ -180,11 +223,13 @@ def develop(task_description,
 if __name__ == '__main__':
     from seidr.eval import IOMatch
 
-    task = 'A program that outputs "Hello World"'
-
-    # Use the same IO examples for prompt and tests
-    critics = [
-        lambda code: IOMatch(code, language='Python', 
-                             input=[''], output=['Hello World'])
-    ]
-    develop(task, [[[''], ['Hello, World']]], critics, language='Python')
+    for language in ('Python', 'C++'):
+        # Use the same IO examples for prompt and tests
+        critics = [
+            lambda code: IOMatch(code, language=language, 
+                                input=[''], output=['Hello World'])
+        ]
+        develop(task_description=f'A {language} program that outputs "Hello World"', 
+                start_prompt=None,
+                critics=critics, 
+                language=language)

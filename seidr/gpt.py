@@ -29,6 +29,11 @@ def query_gpt(source=None, instruction=None, modality='code', n=1, t=1.0):
     """
     logging.info(f"Querying GPT with temperature {t} and {n} snippets.")
 
+    source = str(source)
+    instruction = str(instruction)
+    n = int(n)
+    t = float(t)
+
     result = []
     try:
         if instruction:
