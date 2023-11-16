@@ -26,6 +26,7 @@ jsonlines = "^4.0.0"
 jupyterlab = "^4.0.7"
 black = "^23.10.1"
 langchain = "^0.0.326"
+pytest-codeblocks = "^0.17.0"
 
 [build-system]
 requires = ["poetry-core"]

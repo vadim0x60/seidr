@@ -1,17 +1,14 @@
 import logging
 import os
 
-import langchain.adapters.openai
-import openai
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI, ChatOllama
-from langchain.schema import HumanMessage, SystemMessage
-from tenacity import retry, retry_if_exception_type, stop_after_attempt
-from tenacity import wait_random_exponential, before_sleep_log
-import traceback
 from collections.abc import Iterable
 from typing import Callable
 import re
+from black import format_str, FileMode
+from pytest_codeblocks import extract_from_buffer
+from io import StringIO
 
 from seidr.prompt import create_chat_prompt_template
 
@@ -35,27 +32,25 @@ def create_ollama_chain(
     return LLMChain(llm=chat_model, prompt=chat_prompt_template)
 
 
-def postprocess_code(
-        code: str,
+def extract_code(
+        message_content: str,
         language: str,
         mode: str = "full"
 ) -> str:
-    """Remove quotes or language name around the generated code"""
-    code = code.strip()
+    """Extract code out of a message and (if Python) format it with black"""
 
-    if "```" in code:
-        matches = [m.group(1) for m in re.finditer("```" + language + "([\w\W]*?)```", code)]
-        if len(matches) > 0:
-            code = matches[0]
-        elif code.startswith("```"):
-            matches = [m.group(1) for m in re.finditer("```([\w\W]*?)```", code)]
-            if len(matches) > 0:
-                code = matches[0]
-            else:
-                code = code[3:]
+    print(message_content)
 
-    if code.endswith("```") or code.endswith('"""'):
-        code = code[:-3]
+    code_blocks = list(extract_from_buffer(StringIO(message_content)))
+    for code_block in code_blocks:
+        print(code_block)
+
+    if len(code_blocks) == 0:
+        code = message_content
+    elif len(code_blocks) == 1:
+        code = code_blocks[0].code
+    else:
+        raise ValueError("The message contains more than one code block")
 
     if language.lower() == "python":
         code = run_black(code)
@@ -63,7 +58,7 @@ def postprocess_code(
     return code.strip()
 
 
-def run_black(code: str, language: str) -> str:
+def run_black(code: str) -> str:
     try:
         return format_str(code, mode=FileMode())
     except Exception as e:
@@ -101,11 +96,14 @@ def query_llm(
     chain = create_chain(temperature=temperature, mode=mode, model_name=model_name)
     kwargs['language'] = language
     result = chain.generate([kwargs for _ in range(n)])
+
+    # Assistants are trained to respond with one message.
+    # it is theoretically possible to get more than one message, but it is very unlikely.
     assert all(len(r) == 1 for r in result.generations), "The models are expected to respond with one message"
     result = [r[0].message.content for r in result.generations]
 
-    #if mode != "explain_bugs":
-    #    result = postprocess_code(code=result, language=language)
+    if mode != "explain_bugs":
+        result = [extract_code(message_content=r, language=language) for r in result]
 
     return result
 
@@ -144,9 +142,18 @@ if __name__ == '__main__':
     import itertools
     logging.basicConfig(level=logging.INFO)
 
-    for code in itertools.islice(explore_llm(language='Python', 
-                                             problem_name='hello-world', 
-                                             task_description='Write a Python program that outputs Hello World', 
-                                             start_code='', 
-                                             model_name='gpt-3.5-turbo'), 10):
-        print(code)
+    fizz_buzz = """
+    Write a Python program that iterates integer numbers
+    from 1 to 50. For multiples of three print "Fizz"
+    instead of the number and for the multiples of five
+    print "Buzz". For numbers which are multiples of both
+    three and five print "FizzBuzz".
+    """
+
+    for model_name in ['codellama:34b-instruct', 'gpt-3.5-turbo']:
+        for code in itertools.islice(explore_llm(language='Python', 
+                                                problem_name='fizz-buzz', 
+                                                task_description=fizz_buzz, 
+                                                start_code='', 
+                                                model_name=model_name), 10):
+            print(code)
