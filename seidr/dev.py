@@ -2,6 +2,7 @@ import itertools
 import logging
 from programlib import Program, Language
 from typing import Callable, Optional, Iterable
+import random
 
 from seidr.llm import explore_llm
 from seidr.eval import Evaluation
@@ -22,8 +23,53 @@ def rolling_best(objects, max_score=1, metric=lambda x: x):
         if best_score >= max_score:
             break
 
+def standard_ranking(candidates):
+    def avg_score(candidate):
+        prompt, code, evals = candidate
+        score = sum(e.score() for e in evals) / len(evals)
+        return score
 
-def beam_search(beam, update, metric, beam_width=100):
+    return sorted(candidates, key=avg_score, reverse=True)
+
+def lexicase_ranking(candidates):
+    pool = [evals for prompt, code, evals in candidates]
+
+    case_count = min(len(evals) for evals in pool)
+    cases = list(range(case_count))
+    random.shuffle(cases)
+
+    for case_order in itertools.combinations(cases, case_count):
+        logging.info(f"Lexicase: test case order {reversed(case_order)}")
+        # Pseudocode from page 3 of
+        # Spector 2012 "Assessment of problem modality by differential performance of lexicase selection in genetic programming: a preliminary report"
+        round_winners = range(len(pool))
+
+        # Loop until a single candidate is left
+        # Reversing case_order ensures diversity: the first case is always different
+        for case in reversed(case_order):
+            fitnesses = [pool[idx][case].score() for idx in round_winners]
+            logging.info(f"Lexicase: "
+                         f"idx: fitness values"
+                         f"(test pass rates of all candidate programs on test {case})"
+                         f"{[':'.join([str(idx), str(fitness)]) for idx, fitness in zip(round_winners, fitnesses)]}")
+            best_fitness = max(fitnesses)
+
+            round_winners = [idx for idx, fitness 
+                             in zip(round_winners, fitnesses) 
+                             if fitness == best_fitness]
+
+            logging.info(f"Lexicase: "
+                         f"programs that have max test pass rate of value {best_fitness} on test {case}) {round_winners}")
+            
+            if len(round_winners) == 1:
+                break
+
+        for idx in round_winners:
+            yield candidates[idx]
+        for idx in round_winners:
+            del candidates[idx]
+
+def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
     while True:
         parents = []
@@ -31,7 +77,7 @@ def beam_search(beam, update, metric, beam_width=100):
             yield code
             parents.append(code)
 
-        parents = sorted(parents, key=metric, reverse=True)[:beam_width]
+        parents = itertools.islice(ranking(new_beam), beam_width)
 
         if len(parents) == 0:
             break
