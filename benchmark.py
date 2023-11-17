@@ -63,6 +63,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   prompt_examples: int = 5, 
                   log: str ='ERROR',
                   model_name: str ='gpt-3.5-turbo',
+                  lexicase: bool = False,
                   **kwargs):
     """Generate and repair programs in PSB2
 

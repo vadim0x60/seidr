@@ -77,7 +77,7 @@ def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
             yield code
             parents.append(code)
 
-        parents = itertools.islice(ranking(new_beam), beam_width)
+        parents = itertools.islice(ranking(parents), beam_width)
 
         if len(parents) == 0:
             break
