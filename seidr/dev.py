@@ -77,10 +77,10 @@ def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
             yield code
             parents.append(code)
 
-        parents = itertools.islice(ranking(new_beam), beam_width)
-
         if len(parents) == 0:
             break
+
+        parents = itertools.islice(ranking(parents), beam_width)
         beam = (child for parent in parents for child in update(parent))
 
 def distribute_heat(heat, n, batch_size):
@@ -112,7 +112,7 @@ class SEIDR:
                  drafts_per_prompt: int = 10,
                  explanations_per_program: int = 10,
                  repairs_per_explanation: int = 2,
-                 tree_arity: int = 10,
+                 lexicase_selection: bool = False,
                  log_metrics: Callable = print,
                  log_attempt: Callable = print_code,
                  log_solution: Callable =lambda *args, **kwargs: print('This program is the best!'),
@@ -128,7 +128,7 @@ class SEIDR:
         self.drafts_per_prompt = drafts_per_prompt
         self.explanations_per_program = explanations_per_program
         self.repairs_per_explanation = repairs_per_explanation
-        self.tree_arity = tree_arity
+        self.lexicase_selection = lexicase_selection
         self.log_metrics = log_metrics
         self.log_attempt = log_attempt
         self.log_solution = log_solution
@@ -224,11 +224,6 @@ class SEIDR:
             for code in self.repair(code, feedback):
                 yield feedback, code, [critic(code) for critic in self.critics]
 
-        def metric(candidate):
-            prompt, code, evals = candidate
-            avg_score = sum(e.score() for e in evals) / len(evals)
-            return avg_score
-
         drafts = self.draft(start_code)
         drafts = ((self.task_description, code, 
                    [critic(code) for critic in self.critics])
@@ -236,7 +231,8 @@ class SEIDR:
         
         best_score = float('-inf')
 
-        search = beam_search(drafts, have_kids, metric, self.beam_width)
+        rnk = lexicase_ranking if self.lexicase_selection else standard_ranking
+        search = beam_search(drafts, have_kids, rnk, self.beam_width)
         for idx, candidate in enumerate(search):
             prompt, code, evals = candidate
 
@@ -269,19 +265,3 @@ class SEIDR:
                 break
 
         return code
-
-if __name__ == '__main__':
-    from seidr.eval import IOMatch
-
-    seidr = SEIDR(
-        task_name='Hello World',
-        task_description='Write a program that outputs "Hello World"',
-        language='Python',
-        critics = [
-            lambda code: IOMatch(code, language='Python', 
-                                input=[''], output=['Hello World'])
-        ],
-        model_name='codellama:34b-instruct'
-    )
-
-    seidr.develop()

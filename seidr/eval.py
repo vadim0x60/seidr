@@ -18,17 +18,17 @@ class Evaluation(ABC):
         self.SUT = SUT
         self.passing_score = passing_score
 
-    def check(self):
+    def check(self) -> bool:
         """Produce a binary pass/fail evaluation"""
         return self.score() >= self.passing_score
 
-    def score(self):
+    def score(self) -> float:
         """Produce a float score"""
-        pass
+        raise NotImplementedError
 
-    def pen_report(self):
+    def pen_report(self) -> str:
         """Produce a text report"""
-        pass
+        raise NotImplementedError
 
 class IOMatch(Evaluation):
     def __init__(self, code, language, input, output, 
@@ -44,11 +44,11 @@ class IOMatch(Evaluation):
         if rerun or not self.test_run:
             self.test_run = self.SUT.test([[self.input, self.output]])[0]
 
-    def score(self):
+    def score(self) -> float:
         self.run_test(rerun=False)
         return self.SUT.avg_score
 
-    def pen_report(self):
+    def pen_report(self) -> str:
         self.run_test(rerun=False)
 
         if self.check():
@@ -75,14 +75,15 @@ class UnitTest(Evaluation):
             else:
                 self.output = self.SUT.run(force=True)
 
-    def score(self):
+    def score(self) -> float:
+        self.run_test(rerun=False)
+        return 0.0 if self.SUT.exitstatus else 1.0
+    
+    def check(self) -> bool:
         self.run_test(rerun=False)
         return not self.SUT.exitstatus
-    
-    def check(self):
-        return self.score()
 
-    def pen_report(self):
+    def pen_report(self) -> str:
         self.run_test(rerun=False)
         if self.check():
             return dont_change

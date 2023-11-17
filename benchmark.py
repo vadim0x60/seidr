@@ -63,6 +63,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   prompt_examples: int = 5, 
                   log: str ='ERROR',
                   model_name: str ='gpt-3.5-turbo',
+                  lexicase_selection: bool = True,
                   **kwargs):
     """Generate and repair programs in PSB2
 
@@ -102,6 +103,8 @@ def run_benchmark(problem: str = 'fizz-buzz',
         'execute' or 'debug'
     model_name : str
         name of the OpenAI or Ollama model to use
+    lexicase_selection : bool
+        whether to use lexicase selection or just sort by score
     """
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
@@ -178,6 +181,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
         drafts_per_prompt=drafts_per_prompt,
         explanations_per_program=explanations_per_program,
         repairs_per_explanation=repairs_per_explanation,
+        lexicase_selection=lexicase_selection,
         log_metrics = wandb.log,
         log_attempt = attempts_logger,
         log_solution = solutions_logger,
