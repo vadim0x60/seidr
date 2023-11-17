@@ -35,8 +35,7 @@ def create_ollama_chain(
 
 def extract_code(
         message_content: str,
-        language: Language | str,
-        mode: str = "full"
+        language: Language | str
 ) -> str:
     """Extract code out of a message and (if Python) format it with black"""
 
@@ -90,6 +89,7 @@ def query_llm(
         n: int = 1,
         **kwargs
 ) -> list[str]:
+    logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}")
     chain = create_chain(temperature=temperature, mode=mode, model_name=model_name)
     kwargs['language'] = language
     result = chain.generate([kwargs for _ in range(n)])
@@ -99,8 +99,13 @@ def query_llm(
     assert all(len(r) == 1 for r in result.generations), "The models are expected to respond with one message"
     result = [r[0].message.content for r in result.generations]
 
+    result_logging = "\n\n".join(result)
+    logging.info(f"LLM output: {result_logging}")
+
     if mode != "explain_bugs":
         result = [extract_code(message_content=r, language=language) for r in result]
+        result_logging = "\n\n".join(result)
+        logging.info(f"LLM output after code extraction: \n{result_logging}")
 
     return result
 

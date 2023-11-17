@@ -50,19 +50,19 @@ def is_already_solved(solutions_logger, test_data, language):
         return False
 
 
-def run_benchmark(problem: str = 'fizz-buzz', 
+def run_benchmark(problem: str = 'fizz-buzz',
                   language: str = 'C++',
-                  max_programs: int = 1000, 
+                  max_programs: int = 1000,
                   drafts_per_prompt: int = 10,
                   explanations_per_program: int = 10,
                   repairs_per_explanation: int = 2,
                   beam_width: int = 100,
-                  seed: int = 42, 
-                  valid_examples: int = 100, 
+                  seed: int = 42,
+                  valid_examples: int = 100,
                   test_examples: int = 2000,
-                  prompt_examples: int = 5, 
-                  log: str ='ERROR',
-                  model_name: str ='gpt-3.5-turbo',
+                  prompt_examples: int = 5,
+                  log: str = 'ERROR',
+                  model_name: str = 'gpt-3.5-turbo',
                   lexicase: bool = False,
                   **kwargs):
     """Generate and repair programs in PSB2
@@ -127,7 +127,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
     commit_msg_template = get_template('commit.txt').format(
         problem=problem,
         wandb_url=run.url)
-    
+
     # TODO: Once lexicase is a thing, add it here
     attempts_branch = f'psb_{model_name}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}_dev'
     solutions_branch = f'psb_{model_name}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}'
@@ -162,7 +162,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
         call_count += 1
 
     critics = [
-        lambda code: IOMatch(code, language=language, input=inp, output=out,
+        lambda code: IOMatch(code=code, language=language, input=inp, output=out,
                              task_description=description)
         for inp, out in valid_data
     ]
@@ -170,20 +170,20 @@ def run_benchmark(problem: str = 'fizz-buzz',
     start_code = start_coding(prompt, language=language)
 
     seidr = SEIDR(
-        task_name = problem,
-        task_description = description, 
-        critics = critics,
-        model_name = model_name,
-        language = language,
-        beam_width = beam_width,
+        task_name=problem,
+        task_description=description,
+        critics=critics,
+        model_name=model_name,
+        language=language,
+        beam_width=beam_width,
         drafts_per_prompt=drafts_per_prompt,
         explanations_per_program=explanations_per_program,
         repairs_per_explanation=repairs_per_explanation,
-        log_metrics = wandb.log,
-        log_attempt = attempts_logger,
-        log_solution = solutions_logger,
-        log_llm_call = log_llm_call,
-        max_programs = max_programs,
+        log_metrics=wandb.log,
+        log_attempt=attempts_logger,
+        log_solution=solutions_logger,
+        log_llm_call=log_llm_call,
+        max_programs=max_programs,
     )
 
     solution = seidr.develop(start_code=start_code)
