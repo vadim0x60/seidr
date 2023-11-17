@@ -50,11 +50,19 @@ def is_already_solved(solutions_logger, test_data, language):
         return False
 
 
-def run_benchmark(problem='fizz-buzz', language='C++', tree_arity=100,
-                  max_programs=1000, beam_width=100, debug_prompt_id=0,
-                  seed=42, valid_examples=100, test_examples=2000,
-                  prompt_examples=5, batch_size=10, mode='execute', log='ERROR',
-                  model_name='gpt-3.5-turbo',
+def run_benchmark(problem: str = 'fizz-buzz', 
+                  language: str = 'C++',
+                  max_programs: int = 1000, 
+                  drafts_per_prompt: int = 10,
+                  explanations_per_program: int = 10,
+                  repairs_per_explanation: int = 2,
+                  beam_width: int = 100,
+                  seed: int = 42, 
+                  valid_examples: int = 100, 
+                  test_examples: int = 2000,
+                  prompt_examples: int = 5, 
+                  log: str ='ERROR',
+                  model_name: str ='gpt-3.5-turbo',
                   **kwargs):
     """Generate and repair programs in PSB2
 
@@ -118,9 +126,10 @@ def run_benchmark(problem='fizz-buzz', language='C++', tree_arity=100,
     commit_msg_template = get_template('commit.txt').format(
         problem=problem,
         wandb_url=run.url)
-
-    attempts_branch = f'bf{tree_arity}_promptid{debug_prompt_id}_maxprograms{max_programs}_dev'
-    solutions_branch = f'bf{tree_arity}_promptid{debug_prompt_id}_maxprograms{max_programs}'
+    
+    # TODO: Once lexicase is a thing, add it here
+    attempts_branch = f'psb_{model_name}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}_dev'
+    solutions_branch = f'psb_{model_name}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}'
 
     attempts_logger = FileLogger(branch=attempts_branch,
                                  filename=language.source.format(name=problem),
@@ -130,7 +139,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', tree_arity=100,
                                   commit_msg_template=commit_msg_template)
 
     description = task_descriptions[problem]
-    debug_template = debug_templates[debug_prompt_id]
 
     # ensure that the same I/O pairs are fetched for every experiment
     random.seed(seed)
@@ -140,13 +148,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', tree_arity=100,
         test_examples, format='competitive')
     prompt_data = train_data[:prompt_examples]
     valid_data = train_data[:valid_examples]
-
-    if mode == 'debug':
-        for ix in range(5):
-            train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 10, format='competitive')
-            for filename, data in zip([f'train_{ix}.txt', f'test_{ix}.txt'], [train_data, test_data]):
-                with open(Path('solutions') / filename, 'w') as f:
-                    f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
 
     if is_already_solved(solutions_logger, test_data, language):
         logging.info(f'{problem} is already solved, shutting down')
@@ -161,7 +162,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', tree_arity=100,
 
     critics = [
         lambda code: IOMatch(code, language=language, input=inp, output=out,
-                             debug_template=debug_template,
                              task_description=description)
         for inp, out in valid_data
     ]
@@ -175,13 +175,14 @@ def run_benchmark(problem='fizz-buzz', language='C++', tree_arity=100,
         model_name = model_name,
         language = language,
         beam_width = beam_width,
-        tree_arity = tree_arity,
+        drafts_per_prompt=drafts_per_prompt,
+        explanations_per_program=explanations_per_program,
+        repairs_per_explanation=repairs_per_explanation,
         log_metrics = wandb.log,
         log_attempt = attempts_logger,
         log_solution = solutions_logger,
         log_llm_call = log_llm_call,
         max_programs = max_programs,
-        batch_size = min(batch_size, tree_arity)
     )
 
     solution = seidr.develop(start_code=start_code)
@@ -192,7 +193,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', tree_arity=100,
         IOMatch(solution,
                 language=language,
                 input=inp, output=out,
-                debug_template=debug_template,
                 task_description=description)
         for inp, out in valid_data]
     avg_score = sum(e.score() for e in test_evals) / len(test_evals)

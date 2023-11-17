@@ -41,8 +41,6 @@ def extract_code(
     """Extract code out of a message and (if Python) format it with black"""
 
     code_blocks = list(extract_from_buffer(StringIO(message_content)))
-    for code_block in code_blocks:
-        print(code_block)
 
     if len(code_blocks) == 0:
         code = message_content

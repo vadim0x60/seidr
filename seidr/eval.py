@@ -32,14 +32,12 @@ class Evaluation(ABC):
 
 class IOMatch(Evaluation):
     def __init__(self, code, language, input, output, 
-                 debug_template='Make sure {i} -> {o}', 
                  task_description=None):
         program = Program(code, language=language)
         super().__init__(program)
         self.input = input
         self.output = output
         self.test_run = None
-        self.debug_template = debug_template
         self.task_description = task_description
 
     def run_test(self, rerun=True):
@@ -55,6 +53,8 @@ class IOMatch(Evaluation):
 
         if self.check():
             return dont_change
+        elif self.test_run.exit_status:
+            return '\n'.join(self.test_run.output_lines)
         else:
             input = '\n'.join(self.test_run.input_lines)
             expected_output = '\n'.join(self.test_run.expected_output_lines)

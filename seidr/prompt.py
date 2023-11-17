@@ -88,9 +88,10 @@ HUMAN_PROMPTS = {
     "explain_bugs": "I'm trying to solve the following code contest problem: {task_name}. "
                     "Problem description: {task_description}.\n"
                     "Currently, the code is \n```\n{code}\n``` \n"
-                    "The problem is {problem}\n"
+                    "The issue is \n"
+                    "{issue}\n"
                     "Describe how I should fix the code in a very concise manner.",
-    "repair": "Solve the following code contest problem: problem: {task_name}. "
+    "repair": "Solve the following code contest problem: {task_name}. "
               "Problem description: {task_description}.\n"
               "Currently, the code is \n```\n{code}\n``` \n"
               "Modify the code as  {bug_summary}.\n"

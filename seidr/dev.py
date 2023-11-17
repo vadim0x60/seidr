@@ -1,7 +1,7 @@
 import itertools
 import logging
 from programlib import Program, Language
-from typing import Callable, Optional
+from typing import Callable, Optional, Iterable
 
 from seidr.llm import explore_llm
 from seidr.eval import Evaluation
@@ -63,6 +63,9 @@ class SEIDR:
                  model_name: str,
                  language: str | Language,
                  beam_width: int = 10,
+                 drafts_per_prompt: int = 10,
+                 explanations_per_program: int = 10,
+                 repairs_per_explanation: int = 2,
                  tree_arity: int = 10,
                  log_metrics: Callable = print,
                  log_attempt: Callable = print_code,
@@ -76,6 +79,9 @@ class SEIDR:
         self.model_name = model_name
         self.language = language
         self.beam_width = beam_width
+        self.drafts_per_prompt = drafts_per_prompt
+        self.explanations_per_program = explanations_per_program
+        self.repairs_per_explanation = repairs_per_explanation
         self.tree_arity = tree_arity
         self.log_metrics = log_metrics
         self.log_attempt = log_attempt
@@ -85,44 +91,54 @@ class SEIDR:
 
         if not batch_size:
             if 'gpt' in model_name:
-                batch_size = 10
+                self.batch_size = 10
             else:
                 # Because Ollama doesn't support batch inference
-                batch_size = 1
+                self.batch_size = 1
 
-        self.batch_size = batch_size
-        self.init_t, self.delta_t = distribute_heat(1, tree_arity, batch_size)
+    def draft(self, start_code: str = '') -> Iterable[str]:
+        batch_size = min(self.batch_size, self.drafts_per_prompt)
+        t, delta_t = distribute_heat(1, self.drafts_per_prompt, batch_size)
 
-    def draft(self, start_code: str = ''):
-        return explore_llm(
-            t=self.init_t,
-            delta_t=self.delta_t,
+        return itertools.islice(explore_llm(
+            t=t,
+            delta_t=delta_t,
             mode="generate",
             model_name=self.model_name,
             language=self.language,
             task_name=self.task_name,
             task_description=self.task_description,
             start_code=start_code,
-            log_llm_call=self.log_llm_call
-        )
+            log_llm_call=self.log_llm_call,
+            batch_size=batch_size
+        ), self.drafts_per_prompt)
 
-    def debug(self, code: str, feedback: str):
+    def repair(self, code: str, feedback: str) -> Iterable[str]:
         """Generate n attempts to fix program so that it passes tests"""
-        for bug_summary in explore_llm(
-            t=self.init_t,
-            delta_t=self.delta_t,
+        explain_batch_size = min(self.batch_size, self.explanations_per_program)
+        repair_batch_size = min(self.batch_size, self.repairs_per_explanation)
+        
+        explain_t, explain_delta_t = distribute_heat(
+            1, self.explanations_per_program, self.batch_size)
+        repair_t, repair_delta_t = distribute_heat(
+            1, self.repairs_per_explanation, self.batch_size)
+
+        for bug_summary in itertools.islice(explore_llm(
+            t=explain_t,
+            delta_t=explain_delta_t,
             mode="explain_bugs",
             model_name=self.model_name,
             language=self.language,
             task_name=self.task_name,
             task_description=self.task_description,
             code=code,
-            problem = feedback,
-            log_llm_call=self.log_llm_call
-        ):
-            for debug in explore_llm(
-                t=self.init_t,
-                delta_t=self.delta_t,
+            issue = feedback,
+            log_llm_call=self.log_llm_call,
+            batch_size=explain_batch_size
+        ), self.explanations_per_program):
+            for repair in itertools.islice(explore_llm(
+                t=repair_t,
+                delta_t=repair_delta_t,
                 mode="repair",
                 model_name=self.model_name,
                 language=self.language,
@@ -131,15 +147,16 @@ class SEIDR:
                 input=input,
                 code=code,
                 bug_summary=bug_summary,
-                log_llm_call=self.log_llm_call
-            ):
-                yield debug
+                log_llm_call=self.log_llm_call,
+                batch_size=repair_batch_size
+            ), self.repairs_per_explanation):
+                yield repair
 
     def develop(self,
-                start_code: str = ''):
+                start_code: str = '') -> str:
         """
         Write a program in language that solves task and passes tests.
-        Solve debug-rewrite trade-off with beam search of given beam size
+        Solve repair-rewrite trade-off with beam search of given beam size
 
         examples is a sequence of (inputs, outputs) pairs
         where inputs and outputs are sequences of strings (lines of code)
@@ -154,14 +171,11 @@ class SEIDR:
         """
 
         def have_kids(candidate):
-            logging.debug(f'Running debug_and_test')
             prompt, code, evals = candidate
             worst_eval = min(evals, key=lambda e: e.score())
             feedback = worst_eval.pen_report()
             
-            debugs = self.debug(code, feedback)
-            debugs = itertools.islice(debugs, self.tree_arity)
-            for code in debugs:
+            for code in self.repair(code, feedback):
                 yield feedback, code, [critic(code) for critic in self.critics]
 
         def metric(candidate):
@@ -170,7 +184,6 @@ class SEIDR:
             return avg_score
 
         drafts = self.draft(start_code)
-        drafts = itertools.islice(drafts, self.tree_arity)
         drafts = ((self.task_description, code, 
                    [critic(code) for critic in self.critics])
                    for code in drafts)
@@ -184,7 +197,8 @@ class SEIDR:
             avg_score = sum(e.score() for e in evals) / len(evals)
             test_pass_rate = sum(e.check() for e in evals) / len(evals)
 
-            logging.info(f'Current program:\n{code}')
+            logging.info(f'Prompt:\n{prompt}\n')
+            logging.info(f'The program generated with the prompt above:\n{code}')
 
             metrics = {
                 'idx': idx,
