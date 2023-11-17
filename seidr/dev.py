@@ -118,7 +118,8 @@ class SEIDR:
                  log_solution: Callable =lambda *args, **kwargs: print('This program is the best!'),
                  log_llm_call: Callable =lambda **kwargs: print(kwargs),
                  max_programs: Optional[int] = None,
-                 batch_size: Optional[int] = None) -> None:
+                 batch_size: Optional[int] = None,
+                 lexicase: bool = False) -> None:
         self.task_name = task_name
         self.task_description = task_description
         self.critics = critics
@@ -134,6 +135,7 @@ class SEIDR:
         self.log_solution = log_solution
         self.log_llm_call = log_llm_call
         self.max_programs = max_programs
+        self.lexicase = lexicase
 
         if not batch_size:
             if 'gpt' in model_name:
@@ -231,8 +233,13 @@ class SEIDR:
         
         best_score = float('-inf')
 
-        rnk = lexicase_ranking if self.lexicase_selection else standard_ranking
-        search = beam_search(drafts, have_kids, rnk, self.beam_width)
+        ranking = lexicase_ranking if self.lexicase_selection else standard_ranking
+        search = beam_search(
+            beam=drafts,
+            update=have_kids,
+            ranking=ranking,
+            beam_width=self.beam_width)
+
         for idx, candidate in enumerate(search):
             prompt, code, evals = candidate
 
