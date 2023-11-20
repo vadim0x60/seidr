@@ -39,7 +39,7 @@ def lexicase_ranking(candidates):
     random.shuffle(cases)
 
     for case_order in itertools.combinations(cases, case_count):
-        logging.info(f"Lexicase: test case order {reversed(case_order)}")
+        logging.info(f"Lexicase: test case order {list(reversed(case_order))}")
         # Pseudocode from page 3 of
         # Spector 2012 "Assessment of problem modality by differential performance of lexicase selection in genetic programming: a preliminary report"
         round_winners = range(len(pool))
@@ -118,8 +118,7 @@ class SEIDR:
                  log_solution: Callable =lambda *args, **kwargs: print('This program is the best!'),
                  log_llm_call: Callable =lambda **kwargs: print(kwargs),
                  max_programs: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 lexicase: bool = False) -> None:
+                 batch_size: Optional[int] = None) -> None:
         self.task_name = task_name
         self.task_description = task_description
         self.critics = critics
@@ -135,7 +134,6 @@ class SEIDR:
         self.log_solution = log_solution
         self.log_llm_call = log_llm_call
         self.max_programs = max_programs
-        self.lexicase = lexicase
 
         if not batch_size:
             if 'gpt' in model_name:
