@@ -33,25 +33,25 @@ def create_ollama_chain(
     return LLMChain(llm=chat_model, prompt=chat_prompt_template)
 
 
-def extract_code(
+def extract_codes(
         message_content: str,
         language: Language | str
 ) -> str:
     """Extract code out of a message and (if Python) format it with black"""
 
-    code_blocks = list(extract_from_buffer(StringIO(message_content)))
+    try:
+        code_blocks = list(extract_from_buffer(StringIO(message_content)))
+    except RuntimeError as e:
+        code_blocks = []
 
-    if len(code_blocks) == 0:
-        code = message_content
-    elif len(code_blocks) == 1:
-        code = code_blocks[0].code
+    if not code_blocks:
+        yield message_content
     else:
-        raise ValueError("The message contains more than one code block")
-
-    if language_(language).name == "Python":
-        code = run_black(code)
-
-    return code.strip()
+        for code_block in code_blocks:
+            if language_(language).name == "Python":
+                yield run_black(code_block.code).strip()
+            else:
+                yield code_block.code.strip()
 
 
 def run_black(code: str) -> str:
@@ -103,7 +103,8 @@ def query_llm(
     logging.info(f"LLM output: {result_logging}")
 
     if mode != "explain_bugs":
-        result = [extract_code(message_content=r, language=language) for r in result]
+        result = [c for r in result 
+                  for c in extract_codes(message_content=r, language=language)]
         result_logging = "\n\n".join(result)
         logging.info(f"LLM output after code extraction: \n{result_logging}")
 
