@@ -190,7 +190,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                 input=inp, output=out,
                 debug_template=debug_template,
                 task_description=description)
-        for inp, out in valid_data]
+        for inp, out in test_data]
     avg_score = sum(e.score() for e in test_evals) / len(test_evals)
     test_pass_rate = sum(e.check() for e in test_evals) / len(test_evals)
 

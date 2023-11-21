@@ -184,7 +184,7 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
                        batch_size=min(batch_size, branching_factor))
 
     logging.info('Development done. Testing...')
-    test_evals = [UnitTest(solution, language, test) for test in valid_data]
+    test_evals = [UnitTest(solution, language, test) for test in test_data]
     avg_score = sum(e.score() for e in test_evals) / len(test_evals)
     test_pass_rate = sum(e.check() for e in test_evals) / len(test_evals)
 
