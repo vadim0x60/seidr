@@ -2,18 +2,18 @@ import logging
 import os
 import random
 import traceback
+from pathlib import Path
+
 import pandas as pd
 import psb2
-import wandb
-
 from fire import Fire
 from more_itertools import chunked
 from programlib import Program
 from programlib import language_
-from pathlib import Path
 
+import wandb
 from seidr import SEIDR, get_template
-from seidr.eval import IOMatch, UnitTest
+from seidr.eval import IOMatch
 from seidr.github import FileLogger
 from seidr.prompt import start_coding, initial_prompt
 
@@ -63,7 +63,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   prompt_examples: int = 5,
                   log: str = 'ERROR',
                   model_name: str = 'gpt-3.5-turbo',
-                  lexicase_selection: bool = True,
+                  lexicase_selection: bool = False,
                   **kwargs):
     """Generate and repair programs in PSB2
 

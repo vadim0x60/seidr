@@ -49,9 +49,8 @@ def lexicase_ranking(candidates):
         for case in reversed(case_order):
             fitnesses = [pool[idx][case].score() for idx in round_winners]
             logging.info(f"Lexicase: "
-                         f"idx: fitness values"
-                         f"(test pass rates of all candidate programs on test {case})"
-                         f"{[':'.join([str(idx), str(fitness)]) for idx, fitness in zip(round_winners, fitnesses)]}")
+                         f"idx: fitness values on test number {case}"
+                         f"{[': '.join([str(idx), str(fitness)]) for idx, fitness in zip(round_winners, fitnesses)]}")
             best_fitness = max(fitnesses)
 
             round_winners = [idx for idx, fitness 
@@ -266,14 +265,12 @@ class SEIDR:
                 best_score = avg_score
                 best_code = code
                 self.log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
-                self.log_solution(code, idx=idx, 
-                            prompt=prompt, test_pass_rate=test_pass_rate)
+                self.log_solution(code, idx=idx, prompt=prompt, test_pass_rate=test_pass_rate)
 
                 if test_pass_rate == 1:
                     break
 
             if self.max_programs is not None and (idx == self.max_programs - 1):
                 break
-
 
         return best_code
