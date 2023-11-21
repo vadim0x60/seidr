@@ -8,7 +8,7 @@ import traceback
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from benchmark import task_descriptions
 
@@ -48,10 +48,61 @@ for language in ["Python"]:# ["C++", "Python"]:
         for problem in humaneval_task_ids[language.lower()]
     ]
 
-experiments = bf_experiments_humaneval
+bf_experiments_humaneval_lexicase_py = []
+
+for language in ["Python"]:  # ["C++", "Python"]:
+    bf_experiments_humaneval_lexicase_py += [
+        {'problem': problem,
+         'language': language,
+         'branching_factor': branching_factor,
+         'max_programs': 100,
+         'beam_width': branching_factor,
+         'debug_prompt_id': 0,
+         'log': 'INFO',
+         'lexicase_selection': True,
+         'dataset': 'humaneval'}
+        for branching_factor in (2, 4, 16, 10)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+bf_experiments_humaneval_lexicase_cpp = []
+
+for language in ["Python"]:  # ["C++", "Python"]:
+    bf_experiments_humaneval_lexicase_cpp += [
+        {'problem': problem,
+         'language': language,
+         'branching_factor': branching_factor,
+         'max_programs': 100,
+         'beam_width': branching_factor,
+         'debug_prompt_id': 0,
+         'log': 'INFO',
+         'lexicase_selection': True,
+         'dataset': 'humaneval'}
+        for branching_factor in (2, 4, 16, 10)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
 
 
-def update_experiments_list(input_file: Path | str, experiments: list[dict[str, Any]]):
+bf_experiments_lexicase = [
+    {'problem': problem,
+     'language': language,
+     'branching_factor': branching_factor,
+     'max_programs': 100,
+     'beam_width': branching_factor,
+     'debug_prompt_id': 0,
+     'log': 'INFO',
+     'lexicase_selection': True,
+     'dataset': 'psb2'}
+    for branching_factor in (2, 4, 16, 10)
+    for problem in task_descriptions.keys()
+    for language in ('C++', 'Python')
+]
+
+def update_experiments_list(
+        input_file: Path | str,
+        experiments: list[dict[str, Any]],
+        offset: int = 0
+) -> List[dict[str | Any]]:
     """Append a new set of hyperparameters from `experiments` list
      to the previous experiments taken from `input_file`"""
     new_experiments = pd.DataFrame(experiments)
@@ -60,7 +111,7 @@ def update_experiments_list(input_file: Path | str, experiments: list[dict[str, 
         updated_experiments = pd.concat((previous_experiments, new_experiments), ignore_index=True)
     except FileNotFoundError:
         updated_experiments = new_experiments
-    updated_experiments.index = list(range(1, updated_experiments.shape[0] + 1))
+    updated_experiments.index = list(range(1 + offset, updated_experiments.shape[0] + offset + 1))
     updated_experiments = updated_experiments.rename_axis('task_id', axis=0)
     return updated_experiments
 
@@ -83,6 +134,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    offset = 12000
+    experiments = bf_experiments_humaneval_lexicase_cpp
+
     if args.output_file is None:
         timestamp = datetime.now().strftime("%d_%m_%y__%H_%M_%S")
         if not Path('config').exists():
@@ -93,7 +147,9 @@ if __name__ == '__main__':
 
     df = update_experiments_list(
         input_file=args.input_file,
-        experiments=experiments)
+        experiments=experiments,
+        offset=offset
+    )
 
     df.to_csv(output_file)
 

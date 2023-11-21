@@ -144,7 +144,7 @@ def develop(task_description,
             language='C++',
             beam_width=3,
             branching_factor=10,
-            lexicase=False,
+            lexicase_selection=False,
             max_programs=None,
             log_metrics=print,
             log_attempt=print_code,
@@ -185,7 +185,7 @@ def develop(task_description,
     
     best_score = float('-inf')
 
-    ranking = lexicase_ranking if lexicase else standard_ranking
+    ranking = lexicase_ranking if lexicase_selection else standard_ranking
     search = beam_search(beam, have_kids, ranking, beam_width)
     for idx, candidate in enumerate(search):
         prompt, code, evals = candidate
