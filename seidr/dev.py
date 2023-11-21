@@ -1,11 +1,11 @@
 import itertools
 import logging
-import itertools
+from programlib import Program, Language
+from typing import Callable, Optional, Iterable
 import random
 
-from seidr.gpt import explore_gpt
-from seidr.prompt import initial_prompt, write_debug_prompt, start_coding
-
+from seidr.llm import explore_llm
+from seidr.eval import Evaluation
 
 def rolling_best(objects, max_score=1, metric=lambda x: x):
     best_score = None
@@ -39,7 +39,7 @@ def lexicase_ranking(candidates):
     random.shuffle(cases)
 
     for case_order in itertools.combinations(cases, case_count):
-        logging.info(f"Lexicase: test case order {reversed(case_order)}")
+        logging.info(f"Lexicase: test case order {list(reversed(case_order))}")
         # Pseudocode from page 3 of
         # Spector 2012 "Assessment of problem modality by differential performance of lexicase selection in genetic programming: a preliminary report"
         round_winners = range(len(pool))
@@ -71,25 +71,17 @@ def lexicase_ranking(candidates):
 
 def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
-    new_beam = []
-
-    # yield beam_width draft (non-repaired) programs
-    for candidate in beam:
-        yield candidate
-        new_beam.append(candidate)
-
     while True:
-        beam = itertools.islice(ranking(new_beam), beam_width)
-        new_beam = []
+        parents = []
+        for code in beam:
+            yield code
+            parents.append(code)
 
-        # yield beam_width * branching_factor children (repaired programs)
-        for parent in beam:
-            for child in update(parent):
-                yield child
-                new_beam.append(child)
-
-        if len(new_beam) == 0:
+        if len(parents) == 0:
             break
+
+        parents = itertools.islice(ranking(parents), beam_width)
+        beam = (child for parent in parents for child in update(parent))
 
 def distribute_heat(heat, n, batch_size):
     if n == 1:
@@ -105,131 +97,176 @@ def distribute_heat(heat, n, batch_size):
 
     return t, delta_t
 
-
-def draft(task_description, start_prompt, batch_size=10, limit_n=None,
-          log_gpt_call=lambda **kwargs: print(kwargs)):
-    t, delta_t = distribute_heat(1, limit_n, batch_size)
-        
-    codes = explore_gpt(source=start_prompt, instruction=task_description, modality='code',
-                        batch_size=batch_size, 
-                        t=t, 
-                        delta_t=delta_t,
-                        log_gpt_call=log_gpt_call)
-
-    if limit_n:
-        codes = itertools.islice(codes, limit_n)
-
-    return codes
-
-
-def debug(code, debug_prompt_text, n, batch_size=10, log_gpt_call=print):
-    """Generate n attempts to fix program so that it passes tests"""
-    t, delta_t = distribute_heat(1, n, batch_size)
-
-    codegen = explore_gpt(source=code,
-                          instruction=debug_prompt_text,
-                          modality='code',
-                          batch_size=batch_size,
-                          t=t, delta_t=delta_t,
-                          log_gpt_call=log_gpt_call)
-    return itertools.islice(codegen, n)
-
 def print_code(code, **vars):
     print(vars)
     print(code)
 
-def develop(task_description,
-            start_prompt,
-            critics,
-            language='C++',
-            beam_width=3,
-            branching_factor=10,
-            lexicase=False,
-            max_programs=None,
-            log_metrics=print,
-            log_attempt=print_code,
-            log_solution=lambda *args, **kwargs: print('This program is the best!'),
-            log_gpt_call=lambda *args, **kwargs: print(kwargs),
-            batch_size=10):
-    """
-    Write a program in language that solves task and passes tests.
-    Solve debug-rewrite trade-off with beam search of given beam size
+class SEIDR:
+    def __init__(self, 
+                 task_name: str,
+                 task_description: str, 
+                 critics: list[Callable[[Program], Evaluation]],
+                 model_name: str,
+                 language: str | Language,
+                 beam_width: int = 10,
+                 drafts_per_prompt: int = 10,
+                 explanations_per_program: int = 10,
+                 repairs_per_explanation: int = 2,
+                 lexicase_selection: bool = False,
+                 log_metrics: Callable = print,
+                 log_attempt: Callable = print_code,
+                 log_solution: Callable =lambda *args, **kwargs: print('This program is the best!'),
+                 log_llm_call: Callable =lambda **kwargs: print(kwargs),
+                 max_programs: Optional[int] = None,
+                 batch_size: Optional[int] = None) -> None:
+        self.task_name = task_name
+        self.task_description = task_description
+        self.critics = critics
+        self.model_name = model_name
+        self.language = language
+        self.beam_width = beam_width
+        self.drafts_per_prompt = drafts_per_prompt
+        self.explanations_per_program = explanations_per_program
+        self.repairs_per_explanation = repairs_per_explanation
+        self.lexicase_selection = lexicase_selection
+        self.log_metrics = log_metrics
+        self.log_attempt = log_attempt
+        self.log_solution = log_solution
+        self.log_llm_call = log_llm_call
+        self.max_programs = max_programs
 
-    examples is a sequence of (inputs, outputs) pairs
-    where inputs and outputs are sequences of strings (lines of code)
-    likewise for tests
+        if not batch_size:
+            if 'gpt' in model_name:
+                self.batch_size = 10
+            else:
+                # Because Ollama doesn't support batch inference
+                self.batch_size = 1
 
-    examples are used in the prompt for the language model,
-    while tests are used to select the best solution
+    def draft(self, start_code: str = '') -> Iterable[str]:
+        batch_size = min(self.batch_size, self.drafts_per_prompt)
+        t, delta_t = distribute_heat(1, self.drafts_per_prompt, batch_size)
 
-    Returns a generator of programs where each program passes
-    more tests than the previous one. The last program in the generator
-    passes all tests.
-    """
+        return itertools.islice(explore_llm(
+            t=t,
+            delta_t=delta_t,
+            mode="generate",
+            model_name=self.model_name,
+            language=self.language,
+            task_name=self.task_name,
+            task_description=self.task_description,
+            start_code=start_code,
+            log_llm_call=self.log_llm_call,
+            batch_size=batch_size
+        ), self.drafts_per_prompt)
 
-    def have_kids(candidate):
-        logging.debug(f'Running debug_and_test')
-        prompt, code, evals = candidate
-        worst_eval = min(evals, key=lambda e: e.score())
-        feedback = worst_eval.pen_report()
+    def repair(self, code: str, feedback: str) -> Iterable[str]:
+        """Generate n attempts to fix program so that it passes tests"""
+        explain_batch_size = min(self.batch_size, self.explanations_per_program)
+        repair_batch_size = min(self.batch_size, self.repairs_per_explanation)
         
-        for code in debug(code, feedback,
-                          n=branching_factor, batch_size=batch_size,
-                          log_gpt_call=log_gpt_call):
-            yield feedback, code, [critic(code) for critic in critics]
-    
-    beam = draft(task_description, start_prompt, batch_size=batch_size, 
-                 limit_n=beam_width, log_gpt_call=log_gpt_call)
-    beam = ((task_description, code, [critic(code) for critic in critics])
-            for code in beam)
-    
-    best_score = float('-inf')
+        explain_t, explain_delta_t = distribute_heat(
+            1, self.explanations_per_program, self.batch_size)
+        repair_t, repair_delta_t = distribute_heat(
+            1, self.repairs_per_explanation, self.batch_size)
 
-    ranking = lexicase_ranking if lexicase else standard_ranking
-    search = beam_search(beam, have_kids, ranking, beam_width)
-    for idx, candidate in enumerate(search):
-        prompt, code, evals = candidate
+        for bug_summary in itertools.islice(explore_llm(
+            t=explain_t,
+            delta_t=explain_delta_t,
+            mode="explain_bugs",
+            model_name=self.model_name,
+            language=self.language,
+            task_name=self.task_name,
+            task_description=self.task_description,
+            code=code,
+            issue = feedback,
+            log_llm_call=self.log_llm_call,
+            batch_size=explain_batch_size
+        ), self.explanations_per_program):
+            for repair in itertools.islice(explore_llm(
+                t=repair_t,
+                delta_t=repair_delta_t,
+                mode="repair",
+                model_name=self.model_name,
+                language=self.language,
+                task_name=self.task_name,
+                task_description=self.task_description,
+                input=input,
+                code=code,
+                bug_summary=bug_summary,
+                log_llm_call=self.log_llm_call,
+                batch_size=repair_batch_size
+            ), self.repairs_per_explanation):
+                yield repair
 
-        avg_score = sum(e.score() for e in evals) / len(evals)
-        test_pass_rate = sum(e.check() for e in evals) / len(evals)
+    def develop(self,
+                start_code: str = '') -> str:
+        """
+        Write a program in language that solves task and passes tests.
+        Solve repair-rewrite trade-off with beam search of given beam size
 
-        logging.info(f'Current program:\n{code}')
+        examples is a sequence of (inputs, outputs) pairs
+        where inputs and outputs are sequences of strings (lines of code)
+        likewise for tests
 
-        metrics = {
-            'idx': idx,
-            'avg_score': avg_score,
-            'pass_rate': test_pass_rate
-        }
+        examples are used in the prompt for the language model,
+        while tests are used to select the best solution
 
-        log_metrics(metrics)
-        log_attempt(code, idx=idx, 
-                    prompt=prompt, test_pass_rate=test_pass_rate)
+        Returns a generator of programs where each program passes
+        more tests than the previous one. The last program in the generator
+        passes all tests.
+        """
 
-        if avg_score > best_score:
-            best_score = avg_score
-            log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
-            log_solution(code, idx=idx, 
-                         prompt=prompt, test_pass_rate=test_pass_rate)
+        def have_kids(candidate):
+            prompt, code, evals = candidate
+            worst_eval = min(evals, key=lambda e: e.score())
+            feedback = worst_eval.pen_report()
+            
+            for code in self.repair(code, feedback):
+                yield feedback, code, [critic(code) for critic in self.critics]
 
-            if test_pass_rate == 1:
+        drafts = self.draft(start_code)
+        drafts = ((self.task_description, code, 
+                   [critic(code) for critic in self.critics])
+                   for code in drafts)
+        
+        best_score = float('-inf')
+
+        ranking = lexicase_ranking if self.lexicase_selection else standard_ranking
+        search = beam_search(
+            beam=drafts,
+            update=have_kids,
+            ranking=ranking,
+            beam_width=self.beam_width)
+
+        for idx, candidate in enumerate(search):
+            prompt, code, evals = candidate
+
+            avg_score = sum(e.score() for e in evals) / len(evals)
+            test_pass_rate = sum(e.check() for e in evals) / len(evals)
+
+            logging.info(f'Prompt:\n{prompt}\n')
+            logging.info(f'The program generated with the prompt above:\n{code}')
+
+            metrics = {
+                'idx': idx,
+                'avg_score': avg_score,
+                'pass_rate': test_pass_rate
+            }
+
+            self.log_metrics(metrics)
+            self.log_attempt(code, idx=idx, 
+                        prompt=prompt, test_pass_rate=test_pass_rate)
+
+            if avg_score > best_score:
+                best_score = avg_score
+                self.log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
+                self.log_solution(code, idx=idx, 
+                            prompt=prompt, test_pass_rate=test_pass_rate)
+
+                if test_pass_rate == 1:
+                    break
+
+            if self.max_programs is not None and (idx == self.max_programs - 1):
                 break
 
-        if max_programs is not None and (idx == max_programs - 1):
-            break
-
-    return code
-
-
-if __name__ == '__main__':
-    from seidr.eval import IOMatch
-
-    for language in ('Python', 'C++'):
-        # Use the same IO examples for prompt and tests
-        critics = [
-            lambda code: IOMatch(code, language=language, 
-                                input=[''], output=['Hello World'])
-        ]
-        develop(task_description=f'A {language} program that outputs "Hello World"', 
-                start_prompt=None,
-                critics=critics, 
-                language=language)
+        return code
