@@ -5,16 +5,16 @@ import traceback
 import pandas as pd
 import psb2
 import wandb
-from seidr import get_template
-from seidr.dev import develop
-from seidr.eval import IOMatch, UnitTest
-from seidr.github import FileLogger
+
 from fire import Fire
 from more_itertools import chunked
 from programlib import Program
 from programlib import language_
 from pathlib import Path
 
+from seidr import SEIDR, get_template
+from seidr.eval import IOMatch, UnitTest
+from seidr.github import FileLogger
 from seidr.prompt import start_coding, initial_prompt
 
 logger = logging.getLogger(__name__)
@@ -50,11 +50,20 @@ def is_already_solved(solutions_logger, test_data, language):
         return False
 
 
-def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
-                  max_programs=1000, beam_width=100, debug_prompt_id=0,
-                  seed=42, valid_examples=100, test_examples=2000,
-                  prompt_examples=5, batch_size=10, mode='execute', log='ERROR',
-                  lexicase_selection=False,
+def run_benchmark(problem: str = 'fizz-buzz',
+                  language: str = 'C++',
+                  max_programs: int = 1000,
+                  drafts_per_prompt: int = 10,
+                  explanations_per_program: int = 10,
+                  repairs_per_explanation: int = 2,
+                  beam_width: int = 100,
+                  seed: int = 42,
+                  valid_examples: int = 100,
+                  test_examples: int = 2000,
+                  prompt_examples: int = 5,
+                  log: str = 'ERROR',
+                  model_name: str = 'gpt-3.5-turbo',
+                  lexicase_selection: bool = True,
                   **kwargs):
     """Generate and repair programs in PSB2
 
@@ -64,7 +73,7 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         name of a problem in PSB 2
     language : str
         programming language
-    branching_factor : int
+    tree_arity : int
         number of leaves to create at level n+1
         from each current leaf at level n in the beam
     max_programs : int
@@ -92,6 +101,10 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         for one parent during the beam search
     mode : str
         'execute' or 'debug'
+    model_name : str
+        name of the OpenAI or Ollama model to use
+    lexicase_selection : bool
+        whether to use lexicase selection or just sort by score
     """
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
@@ -118,9 +131,9 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         wandb_url=run.url)
 
     lexicase_tag = '_lexicase' if lexicase_selection else ""
-
-    attempts_branch = f'psb2_bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}{lexicase_tag}_dev'
-    solutions_branch = f'psb2_bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}{lexicase_tag}'
+    model_name_tag = model_name.replace(':', '_')
+    attempts_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_dev'
+    solutions_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}'
 
     attempts_logger = FileLogger(branch=attempts_branch,
                                  filename=language.source.format(name=problem),
@@ -130,7 +143,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
                                   commit_msg_template=commit_msg_template)
 
     description = task_descriptions[problem]
-    debug_template = debug_templates[debug_prompt_id]
 
     # ensure that the same I/O pairs are fetched for every experiment
     random.seed(seed)
@@ -141,46 +153,44 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
     prompt_data = train_data[:prompt_examples]
     valid_data = train_data[:valid_examples]
 
-    if mode == 'debug':
-        for ix in range(5):
-            train_data, test_data = psb2.fetch_examples(DATA_PATH, problem, 5, 10, format='competitive')
-            for filename, data in zip([f'train_{ix}.txt', f'test_{ix}.txt'], [train_data, test_data]):
-                with open(Path('solutions') / filename, 'w') as f:
-                    f.writelines(list(map(lambda x: '\t'.join([x[0][0], x[1][0]]) + '\n', data)))
-
     if is_already_solved(solutions_logger, test_data, language):
         logging.info(f'{problem} is already solved, shutting down')
         return
 
     call_count = 0
 
-    def log_gpt_call(**kwargs):
+    def log_llm_call(**kwargs):
         nonlocal call_count
         wandb.log({'gpt_calls': call_count})
         call_count += 1
 
     critics = [
-        lambda code: IOMatch(code, language=language, input=inp, output=out,
-                             debug_template=debug_template,
+        lambda code: IOMatch(code=code, language=language, input=inp, output=out,
                              task_description=description)
         for inp, out in valid_data
     ]
     prompt = initial_prompt(description, prompt_data)
-    start_prompt = start_coding(prompt, language=language)
+    start_code = start_coding(prompt, language=language)
 
-    solution = develop(task_description=description,
-                       start_prompt=start_prompt,
-                       critics=critics,
-                       language=language,
-                       beam_width=beam_width,
-                       branching_factor=branching_factor,
-                       lexicase_selection=lexicase_selection,
-                       max_programs=max_programs,
-                       log_metrics=wandb.log,
-                       log_attempt=attempts_logger,
-                       log_solution=solutions_logger,
-                       log_gpt_call=log_gpt_call,
-                       batch_size=min(batch_size, branching_factor))
+    seidr = SEIDR(
+        task_name=problem,
+        task_description=description,
+        critics=critics,
+        model_name=model_name,
+        language=language,
+        beam_width=beam_width,
+        drafts_per_prompt=drafts_per_prompt,
+        explanations_per_program=explanations_per_program,
+        repairs_per_explanation=repairs_per_explanation,
+        lexicase_selection=lexicase_selection,
+        log_metrics=wandb.log,
+        log_attempt=attempts_logger,
+        log_solution=solutions_logger,
+        log_llm_call=log_llm_call,
+        max_programs=max_programs,
+    )
+
+    solution = seidr.develop(start_code=start_code)
 
     logging.info('Development done. Testing...')
 
@@ -188,7 +198,6 @@ def run_benchmark(problem='fizz-buzz', language='C++', branching_factor=100,
         IOMatch(solution,
                 language=language,
                 input=inp, output=out,
-                debug_template=debug_template,
                 task_description=description)
         for inp, out in test_data]
     avg_score = sum(e.score() for e in test_evals) / len(test_evals)
