@@ -84,6 +84,9 @@ def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
         beam = (child for parent in parents for child in update(parent))
 
 def distribute_heat(heat, n, batch_size):
+    """Calculate steps for increasing temperature of an LLM that will be distributed over the batch."""
+    # Setting: we generate `n` outputs from an LLM by generating `batch_size` outputs at once,
+    # Note that we use `batch_size`=1 for langchain models
     if n == 1:
         t = 0
         delta_t = 0.2  
