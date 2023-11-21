@@ -184,6 +184,7 @@ def develop(task_description,
             for code in beam)
     
     best_score = float('-inf')
+    best_code = None
 
     ranking = lexicase_ranking if lexicase_selection else standard_ranking
     search = beam_search(beam, have_kids, ranking, beam_width)
@@ -207,6 +208,7 @@ def develop(task_description,
 
         if avg_score > best_score:
             best_score = avg_score
+            best_code = code
             log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
             log_solution(code, idx=idx, 
                          prompt=prompt, test_pass_rate=test_pass_rate)
@@ -217,7 +219,7 @@ def develop(task_description,
         if max_programs is not None and (idx == max_programs - 1):
             break
 
-    return code
+    return best_code
 
 
 if __name__ == '__main__':
