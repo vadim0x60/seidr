@@ -13,4 +13,3 @@ using namespace std;
 /*
 $prompt
 */
-int main() {

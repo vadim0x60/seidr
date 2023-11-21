@@ -84,6 +84,9 @@ def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
         beam = (child for parent in parents for child in update(parent))
 
 def distribute_heat(heat, n, batch_size):
+    """Calculate steps for increasing temperature of an LLM that will be distributed over the batch."""
+    # Setting: we generate `n` outputs from an LLM by generating `batch_size` outputs at once,
+    # Note that we use `batch_size`=1 for langchain models
     if n == 1:
         t = 0
         delta_t = 0.2  
@@ -100,6 +103,7 @@ def distribute_heat(heat, n, batch_size):
 def print_code(code, **vars):
     print(vars)
     print(code)
+
 
 class SEIDR:
     def __init__(self, 
@@ -135,6 +139,7 @@ class SEIDR:
         self.log_llm_call = log_llm_call
         self.max_programs = max_programs
 
+
         if not batch_size:
             if 'gpt' in model_name:
                 self.batch_size = 10
@@ -163,7 +168,7 @@ class SEIDR:
         """Generate n attempts to fix program so that it passes tests"""
         explain_batch_size = min(self.batch_size, self.explanations_per_program)
         repair_batch_size = min(self.batch_size, self.repairs_per_explanation)
-        
+
         explain_t, explain_delta_t = distribute_heat(
             1, self.explanations_per_program, self.batch_size)
         repair_t, repair_delta_t = distribute_heat(
@@ -215,7 +220,6 @@ class SEIDR:
         more tests than the previous one. The last program in the generator
         passes all tests.
         """
-
         def have_kids(candidate):
             prompt, code, evals = candidate
             worst_eval = min(evals, key=lambda e: e.score())
@@ -230,6 +234,7 @@ class SEIDR:
                    for code in drafts)
         
         best_score = float('-inf')
+        best_code = None
 
         ranking = lexicase_ranking if self.lexicase_selection else standard_ranking
         search = beam_search(
@@ -259,6 +264,7 @@ class SEIDR:
 
             if avg_score > best_score:
                 best_score = avg_score
+                best_code = code
                 self.log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
                 self.log_solution(code, idx=idx, 
                             prompt=prompt, test_pass_rate=test_pass_rate)
@@ -269,4 +275,5 @@ class SEIDR:
             if self.max_programs is not None and (idx == self.max_programs - 1):
                 break
 
-        return code
+
+        return best_code

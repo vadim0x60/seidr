@@ -60,9 +60,9 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   seed: int = 42,
                   valid_examples: int = 100,
                   test_examples: int = 2000,
-                  prompt_examples: int = 5, 
-                  log: str ='ERROR',
-                  model_name: str ='gpt-3.5-turbo',
+                  prompt_examples: int = 5,
+                  log: str = 'ERROR',
+                  model_name: str = 'gpt-3.5-turbo',
                   lexicase_selection: bool = True,
                   **kwargs):
     """Generate and repair programs in PSB2
@@ -130,9 +130,10 @@ def run_benchmark(problem: str = 'fizz-buzz',
         problem=problem,
         wandb_url=run.url)
 
-    # TODO: Once lexicase is a thing, add it here
-    attempts_branch = f'psb_{model_name}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}_dev'
-    solutions_branch = f'psb_{model_name}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}'
+    lexicase_tag = '_lexicase' if lexicase_selection else ""
+    model_name_tag = model_name.replace(':', '_')
+    attempts_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_dev'
+    solutions_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}'
 
     attempts_logger = FileLogger(branch=attempts_branch,
                                  filename=language.source.format(name=problem),
@@ -182,11 +183,11 @@ def run_benchmark(problem: str = 'fizz-buzz',
         explanations_per_program=explanations_per_program,
         repairs_per_explanation=repairs_per_explanation,
         lexicase_selection=lexicase_selection,
-        log_metrics = wandb.log,
-        log_attempt = attempts_logger,
-        log_solution = solutions_logger,
-        log_llm_call = log_llm_call,
-        max_programs = max_programs,
+        log_metrics=wandb.log,
+        log_attempt=attempts_logger,
+        log_solution=solutions_logger,
+        log_llm_call=log_llm_call,
+        max_programs=max_programs,
     )
 
     solution = seidr.develop(start_code=start_code)
@@ -198,7 +199,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
                 language=language,
                 input=inp, output=out,
                 task_description=description)
-        for inp, out in valid_data]
+        for inp, out in test_data]
     avg_score = sum(e.score() for e in test_evals) / len(test_evals)
     test_pass_rate = sum(e.check() for e in test_evals) / len(test_evals)
 

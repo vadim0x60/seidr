@@ -64,6 +64,7 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
                   max_programs=1000, beam_width=100, debug_prompt_id=0,
                   seed=42, valid_examples=100, test_examples=2000,
                   prompt_examples=5, batch_size=10, mode='execute', log='ERROR',
+                  lexicase_selection=False,
                   **kwargs):
     """Generate and repair programs in PSB2
 
@@ -126,8 +127,10 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
         problem=problem,
         wandb_url=run.url)
 
-    attempts_branch = f'human_eval_bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}_dev'
-    solutions_branch = f'human_eval_bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}'
+    lexicase_tag = '_lexicase' if lexicase_selection else ""
+
+    attempts_branch = f'humaneval_bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}{lexicase_tag}_dev'
+    solutions_branch = f'humaneval_bf{branching_factor}_promptid{debug_prompt_id}_maxprograms{max_programs}{lexicase_tag}'
 
     attempts_logger = FileLogger(branch=attempts_branch, 
                                  filename=language.source.format(name=problem),
@@ -173,6 +176,7 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
                        beam_width=beam_width,
                        branching_factor=branching_factor,
                        max_programs=max_programs,
+                       lexicase_selection=lexicase_selection,
                        log_metrics=wandb.log,
                        log_attempt=attempts_logger,
                        log_solution=solutions_logger,
@@ -180,7 +184,7 @@ def run_benchmark(problem='Python/0', language='Python', branching_factor=100,
                        batch_size=min(batch_size, branching_factor))
 
     logging.info('Development done. Testing...')
-    test_evals = [UnitTest(solution, language, test) for test in valid_data]
+    test_evals = [UnitTest(solution, language, test) for test in test_data]
     avg_score = sum(e.score() for e in test_evals) / len(test_evals)
     test_pass_rate = sum(e.check() for e in test_evals) / len(test_evals)
 
