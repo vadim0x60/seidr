@@ -1,12 +1,10 @@
-import logging
-
-from langchain.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
-from langchain.chains import LLMChain
-from pathlib import Path
 from string import Template
 
+from langchain.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
 from programlib import language_
+
 from seidr import get_template
+
 
 def initial_prompt(task_description, examples):
     prompt = task_description
@@ -19,52 +17,6 @@ def initial_prompt(task_description, examples):
         prompt += 'output:'
         for sample_output in sample_outputs:
             prompt += '\n' + sample_output
-    return prompt
-
-
-def write_debug_prompt(mistake, debug_prompt_text, task_description=None):
-    logging.info('Updating debug prompt')
-
-def llm_assisted_bug_summary(debug_prompt_text, task_description, input, expected_output, actual_output):
-    return explore_llm(
-        language=language,  # TODO get it from somewhere
-        tempearture=t,  # TODO what to do with delta_t
-        mode="explain_bugs",
-        model_name="codellama:7b-instruct",  # TODO get it from somewhere
-        task_name=task_name,  # TODO get it from somewhere
-        code=code, # TODO get it from somewhere
-        input=input,
-        output=expected_output,
-        wrong_output=actual_output,
-        task_description=task_description
-    )
-
-
-def write_debug_prompt(mistake, debug_prompt_text, task_description=None):
-    logging.info('Formation of debug prompt')
-    output_lines = '\n'.join([s.decode("utf-8") if type(s) == bytes else s for s in mistake.output_lines])
-
-    prompt = ""
-    if mistake.correctness < 1:
-        if mistake.exit_status:
-            error_lines = output_lines
-            prompt = f'Fix {error_lines}' # TODO: return bug summary instead of a prompt
-
-        else:
-            i = '\\n'.join(mistake.input_lines)
-            o = '\\n'.join(mistake.expected_output_lines)
-            if 'GPT ---' in debug_prompt_text: # TODO update to always use it
-                
-                prompt = gpt_assisted_prompt(
-                    debug_prompt_text, task_description, mistake.input_lines,
-                    mistake.expected_output_lines, output_lines)
-            else:
-                prompt = debug_prompt_text.format(i=i, o=o)
-    else:
-        logging.info('\n\nrun.correctness = 1 for all runs, mistake lines are empty\n\n')
-        prompt = dont_change
-
-    logging.info(f'The prompt is: \n{prompt}')
     return prompt
 
 

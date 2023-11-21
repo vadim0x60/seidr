@@ -73,16 +73,11 @@ def run_benchmark(problem: str = 'fizz-buzz',
         name of a problem in PSB 2
     language : str
         programming language
-    tree_arity : int
-        number of leaves to create at level n+1
-        from each current leaf at level n in the beam
     max_programs : int
         maximum number of elements in the resulting beam
     beam_width : int
         number of elements with top score that will be kept in the beam
         out of all leaves at the newly created level n+1
-    debug_prompt_id : int
-        prompt template id from `./debug-prompt-templates/prompts.txt
     seed : int
         used to fix seed so that the same I/O pairs are fetched from PSB2
     valid_examples : int
@@ -96,9 +91,6 @@ def run_benchmark(problem: str = 'fizz-buzz',
     prompt_examples : int
         number of I/O pairs taken from n_train_pairs to generate initial prompt
         for Codex completion model
-    batch_size : int
-        number of Codex outputs for the same prompt that will be generated at once
-        for one parent during the beam search
     mode : str
         'execute' or 'debug'
     model_name : str

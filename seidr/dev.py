@@ -7,6 +7,7 @@ import random
 from seidr.llm import explore_llm
 from seidr.eval import Evaluation
 
+
 def rolling_best(objects, max_score=1, metric=lambda x: x):
     best_score = None
 
@@ -23,6 +24,7 @@ def rolling_best(objects, max_score=1, metric=lambda x: x):
         if best_score >= max_score:
             break
 
+
 def standard_ranking(candidates):
     def avg_score(candidate):
         prompt, code, evals = candidate
@@ -30,6 +32,7 @@ def standard_ranking(candidates):
         return score
 
     return sorted(candidates, key=avg_score, reverse=True)
+
 
 def lexicase_ranking(candidates):
     pool = [evals for prompt, code, evals in candidates]
@@ -53,13 +56,13 @@ def lexicase_ranking(candidates):
                          f"{[': '.join([str(idx), str(fitness)]) for idx, fitness in zip(round_winners, fitnesses)]}")
             best_fitness = max(fitnesses)
 
-            round_winners = [idx for idx, fitness 
-                             in zip(round_winners, fitnesses) 
+            round_winners = [idx for idx, fitness
+                             in zip(round_winners, fitnesses)
                              if fitness == best_fitness]
 
             logging.info(f"Lexicase: "
                          f"programs that have max test pass rate of value {best_fitness} on test {case}) {round_winners}")
-            
+
             if len(round_winners) == 1:
                 break
 
@@ -67,6 +70,7 @@ def lexicase_ranking(candidates):
             yield candidates[idx]
         for idx in round_winners:
             del candidates[idx]
+
 
 def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
     """Generic evolutionary algorithm for improving anything"""
@@ -82,13 +86,14 @@ def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
         parents = itertools.islice(ranking(parents), beam_width)
         beam = (child for parent in parents for child in update(parent))
 
+
 def distribute_heat(heat, n, batch_size):
     """Calculate steps for increasing temperature of an LLM that will be distributed over the batch."""
     # Setting: we generate `n` outputs from an LLM by generating `batch_size` outputs at once,
     # Note that we use `batch_size`=1 for langchain models
     if n == 1:
         t = 0
-        delta_t = 0.2  
+        delta_t = 0.2
     else:
         # We intentionally avoid temperature=0
         # That would lead to a batch of identical code snippets
@@ -99,15 +104,16 @@ def distribute_heat(heat, n, batch_size):
 
     return t, delta_t
 
+
 def print_code(code, **vars):
     print(vars)
     print(code)
 
 
 class SEIDR:
-    def __init__(self, 
+    def __init__(self,
                  task_name: str,
-                 task_description: str, 
+                 task_description: str,
                  critics: list[Callable[[Program], Evaluation]],
                  model_name: str,
                  language: str | Language,
@@ -118,8 +124,8 @@ class SEIDR:
                  lexicase_selection: bool = False,
                  log_metrics: Callable = print,
                  log_attempt: Callable = print_code,
-                 log_solution: Callable =lambda *args, **kwargs: print('This program is the best!'),
-                 log_llm_call: Callable =lambda **kwargs: print(kwargs),
+                 log_solution: Callable = lambda *args, **kwargs: print('This program is the best!'),
+                 log_llm_call: Callable = lambda **kwargs: print(kwargs),
                  max_programs: Optional[int] = None,
                  batch_size: Optional[int] = None) -> None:
         self.task_name = task_name
@@ -137,7 +143,6 @@ class SEIDR:
         self.log_solution = log_solution
         self.log_llm_call = log_llm_call
         self.max_programs = max_programs
-
 
         if not batch_size:
             if 'gpt' in model_name:
@@ -174,31 +179,31 @@ class SEIDR:
             1, self.repairs_per_explanation, self.batch_size)
 
         for bug_summary in itertools.islice(explore_llm(
-            t=explain_t,
-            delta_t=explain_delta_t,
-            mode="explain_bugs",
-            model_name=self.model_name,
-            language=self.language,
-            task_name=self.task_name,
-            task_description=self.task_description,
-            code=code,
-            issue = feedback,
-            log_llm_call=self.log_llm_call,
-            batch_size=explain_batch_size
-        ), self.explanations_per_program):
-            for repair in itertools.islice(explore_llm(
-                t=repair_t,
-                delta_t=repair_delta_t,
-                mode="repair",
+                t=explain_t,
+                delta_t=explain_delta_t,
+                mode="explain_bugs",
                 model_name=self.model_name,
                 language=self.language,
                 task_name=self.task_name,
                 task_description=self.task_description,
-                input=input,
                 code=code,
-                bug_summary=bug_summary,
+                issue=feedback,
                 log_llm_call=self.log_llm_call,
-                batch_size=repair_batch_size
+                batch_size=explain_batch_size
+        ), self.explanations_per_program):
+            for repair in itertools.islice(explore_llm(
+                    t=repair_t,
+                    delta_t=repair_delta_t,
+                    mode="repair",
+                    model_name=self.model_name,
+                    language=self.language,
+                    task_name=self.task_name,
+                    task_description=self.task_description,
+                    input=input,
+                    code=code,
+                    bug_summary=bug_summary,
+                    log_llm_call=self.log_llm_call,
+                    batch_size=repair_batch_size
             ), self.repairs_per_explanation):
                 yield repair
 
@@ -219,19 +224,20 @@ class SEIDR:
         more tests than the previous one. The last program in the generator
         passes all tests.
         """
+
         def have_kids(candidate):
             prompt, code, evals = candidate
             worst_eval = min(evals, key=lambda e: e.score())
             feedback = worst_eval.pen_report()
-            
+
             for code in self.repair(code, feedback):
                 yield feedback, code, [critic(code) for critic in self.critics]
 
         drafts = self.draft(start_code)
-        drafts = ((self.task_description, code, 
+        drafts = ((self.task_description, code,
                    [critic(code) for critic in self.critics])
-                   for code in drafts)
-        
+                  for code in drafts)
+
         best_score = float('-inf')
         best_code = None
 
@@ -258,8 +264,8 @@ class SEIDR:
             }
 
             self.log_metrics(metrics)
-            self.log_attempt(code, idx=idx, 
-                        prompt=prompt, test_pass_rate=test_pass_rate)
+            self.log_attempt(code, idx=idx,
+                             prompt=prompt, test_pass_rate=test_pass_rate)
 
             if avg_score > best_score:
                 best_score = avg_score

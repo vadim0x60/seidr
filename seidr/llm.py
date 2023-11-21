@@ -89,7 +89,7 @@ def query_llm(
         n: int = 1,
         **kwargs
 ) -> list[str]:
-    logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}")
+    logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}\n...")
     chain = create_chain(temperature=temperature, mode=mode, model_name=model_name)
     kwargs['language'] = language
     result = chain.generate([kwargs for _ in range(n)])
@@ -99,14 +99,19 @@ def query_llm(
     assert all(len(r) == 1 for r in result.generations), "The models are expected to respond with one message"
     result = [r[0].message.content for r in result.generations]
 
+    if mode == "repair":
+        logging.info(f"Generating repair candidates for bug summary: \n{kwargs['bug_summary']}\n...")
+    elif mode == "explain_bugs":
+        logging.info(f"Generating explanations for code: \n{kwargs['code']}\n...")
+
     result_logging = "\n\n".join(result)
-    logging.info(f"LLM output: {result_logging}")
+    logging.info(f"LLM output: \n{result_logging}\n")
 
     if mode != "explain_bugs":
         result = [c for r in result 
                   for c in extract_codes(message_content=r, language=language)]
         result_logging = "\n\n".join(result)
-        logging.info(f"LLM output after code extraction: \n{result_logging}")
+        logging.info(f"LLM output after code extraction: \n{result_logging}\n...")
 
     return result
 
