@@ -140,8 +140,8 @@ def run_benchmark(problem: str = 'fizz-buzz',
 
     lexicase_tag = '_lexicase' if lexicase_selection else ""
     model_name_tag = model_name.replace(':', '_')
-    attempts_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_dev'
-    solutions_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}'
+    attempts_branch = f'humaneval_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_dev'
+    solutions_branch = f'humaneval_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}'
 
     attempts_logger = FileLogger(branch=attempts_branch,
                                  filename=language.source.format(name=problem),
