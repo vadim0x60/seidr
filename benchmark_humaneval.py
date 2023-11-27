@@ -161,7 +161,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
 
     prompt_data = tests[:min(prompt_examples, len(tests))]
     valid_data = tests[:min(valid_examples, len(tests))]
-    test_data = tests[min(valid_examples, len(tests)):]
+    test_data = tests
 
     if len(test_data) == 0:
         logging.info("All tests are validation tests, setting final tests to be equal to validation tests")
