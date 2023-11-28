@@ -106,7 +106,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
     baseline = pushgp_success_rates[problem]
 
     config = {
-        'slurm_job_id': os.environ.get('SLURM_JOB_ID'),
+        'slurm_job_id': os.environ.get('SLURM_ARRAY_TASK_ID'),
         'task_id': os.environ.get('TASK_ID'),
         **kwargs,
         **locals()
