@@ -122,14 +122,23 @@ def run_benchmark(problem: str = 'fizz-buzz',
     logging.info('logging info')
 
     config = {
-        'slurm_job_id': os.environ.get('SLURM_ARRAY_TASK_ID'),
+        'slurm_job_id': os.environ.get('SLURM_JOB_ID'),
+        'slurm_task_pid': os.environ.get('SLURM_TASK_PID'),
+        'slurm_array_task_id': os.environ.get('SLURM_ARRAY_TASK_ID'),
+        'slurm_array_job_id': os.environ.get('SLURM_ARRAY_JOB_ID'),
         'task_id': os.environ.get('TASK_ID'),
         **kwargs,
         **locals()
     }
 
     del config['kwargs']
-    run = wandb.init(entity=os.environ.get('WANDB_ENTITY'), project='codex-for-psb', config=config)
+    model_name_tag = model_name.replace(':', '_')
+    run = wandb.init(
+        entity=os.environ.get('WANDB_ENTITY'),
+        project=f'seidr-telo-humaneval-{model_name_tag}',
+        dir=os.environ.get('WANDB_DIR'),
+        config=config
+    )
     logger.info(f'Run config {run.config}, W&B: {run.url}')
 
     language = language_(language)
@@ -139,7 +148,6 @@ def run_benchmark(problem: str = 'fizz-buzz',
         wandb_url=run.url)
 
     lexicase_tag = '_lexicase' if lexicase_selection else ""
-    model_name_tag = model_name.replace(':', '_')
     attempts_branch = f'humaneval_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_dev'
     solutions_branch = f'humaneval_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}'
 
@@ -174,7 +182,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
     call_count = 0
     def log_llm_call(**kwargs):
         nonlocal call_count
-        wandb.log({'gpt_calls': call_count})
+        wandb.log({'llm_calls': call_count})
         call_count += 1
 
     validation_critics = [
@@ -206,9 +214,12 @@ def run_benchmark(problem: str = 'fizz-buzz',
     avg_score = sum(e.score() for e in test_evals) / len(test_evals)
     test_pass_rate = sum(e.check() for e in test_evals) / len(test_evals)
 
+    logging.info(f'\nTest pass rate on test: {test_pass_rate}\nTest avg score on test: {avg_score}')
+
     wandb.log({'test_avg_score': avg_score,
                'test_pass_rate': test_pass_rate})
     run.finish()
+    wandb.finish()
 
 
 if __name__ == '__main__':

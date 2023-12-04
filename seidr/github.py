@@ -17,6 +17,7 @@ from uuid import uuid4
 import os
 import shutil
 import logging
+import traceback
 
 @retry(retry=retry_if_exception_type(git.exc.GitCommandError) |
              retry_if_exception_type(git.exc.BadName) |
@@ -50,7 +51,7 @@ def ensure_repo(remote, path, branch=None):
         if branch:
             repo.git.checkout(branch)
     except GitError as e:
-        logging.info(f'Git error in ensure repo {e}')
+        logging.info(f'Git error in ensure repo {e}. \n{traceback.print_stack()}')
         shutil.rmtree(path, ignore_errors=True)
         repo = Repo.clone_from(remote, path)
 

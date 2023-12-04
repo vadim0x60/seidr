@@ -74,6 +74,7 @@ def create_chain(temperature: float = 0.,
         )
     elif "llama" in model_name.lower():
         chat_model = ChatOllama(
+            base_url="http://n014:12343",
             model=model_name,
             temperature=temperature
         )
@@ -104,14 +105,14 @@ def query_llm(
     elif mode == "explain_bugs":
         logging.info(f"Generating explanations for code: \n{kwargs['code']}\n...")
 
-    result_logging = "\n\n".join(result)
-    logging.info(f"LLM output: \n{result_logging}\n")
-
     if mode != "explain_bugs":
         result = [c for r in result 
                   for c in extract_codes(message_content=r, language=language)]
         result_logging = "\n\n".join(result)
         logging.info(f"LLM output after code extraction: \n{result_logging}\n...")
+    else:
+        result_logging = "\n\n".join(result)
+        logging.info(f"LLM output: \n{result_logging}\n")
 
     return result
 

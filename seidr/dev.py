@@ -15,10 +15,6 @@ def rolling_best(objects, max_score=1, metric=lambda x: x):
         score = metric(object)
         if best_score is None or score > best_score:
             best_score = score
-            try:
-                logging.info(f'\nThe program has improved. Code: \n\n{object.read()}\n\n')
-            except:
-                pass
             yield object
 
         if best_score >= max_score:
@@ -271,6 +267,7 @@ class SEIDR:
                 best_score = avg_score
                 best_code = code
                 self.log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
+                logging.info('\n'.join([f'\nbest_{metric}: {val}\n' for metric, val in metrics.items()]))
                 self.log_solution(code, idx=idx, prompt=prompt, test_pass_rate=test_pass_rate)
 
                 if test_pass_rate == 1:
