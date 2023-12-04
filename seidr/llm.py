@@ -38,9 +38,9 @@ def extract_codes(
         language: Language | str
 ) -> str:
     """Extract code out of a message and (if Python) format it with black"""
-
     try:
         code_blocks = list(extract_from_buffer(StringIO(message_content)))
+        code_blocks = [code for code in code_blocks if not bool(code)]
     except RuntimeError as e:
         code_blocks = []
 
@@ -98,7 +98,7 @@ def query_llm(
     # Assistants are trained to respond with one message.
     # it is theoretically possible to get more than one message, but it is very unlikely.
     assert all(len(r) == 1 for r in result.generations), "The models are expected to respond with one message"
-    result = [r[0].message.content for r in result.generations]
+    result = [r[0].message.content for r in result.generations if r[0].message.content]
 
     if mode == "repair":
         logging.info(f"Generating repair candidates for bug summary: \n{kwargs['bug_summary']}\n")
