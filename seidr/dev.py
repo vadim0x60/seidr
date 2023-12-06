@@ -123,7 +123,8 @@ class SEIDR:
                  log_solution: Callable = lambda *args, **kwargs: print('This program is the best!'),
                  log_llm_call: Callable = lambda **kwargs: print(kwargs),
                  max_programs: Optional[int] = None,
-                 batch_size: Optional[int] = None) -> None:
+                 batch_size: Optional[int] = None,
+                 ollama_url: Optional[str] = None) -> None:
         self.task_name = task_name
         self.task_description = task_description
         self.critics = critics
@@ -139,6 +140,7 @@ class SEIDR:
         self.log_solution = log_solution
         self.log_llm_call = log_llm_call
         self.max_programs = max_programs
+        self.ollama_url = ollama_url
 
         if not batch_size:
             if 'gpt' in model_name:
@@ -161,7 +163,8 @@ class SEIDR:
             task_description=self.task_description,
             start_code=start_code,
             log_llm_call=self.log_llm_call,
-            batch_size=batch_size
+            batch_size=batch_size,
+            base_url=self.ollama_url,
         ), self.drafts_per_prompt)
 
     def repair(self, code: str, feedback: str) -> Iterable[str]:
@@ -185,7 +188,8 @@ class SEIDR:
                 code=code,
                 issue=feedback,
                 log_llm_call=self.log_llm_call,
-                batch_size=explain_batch_size
+                batch_size=explain_batch_size,
+                base_url=self.ollama_url
         ), self.explanations_per_program):
             for repair in itertools.islice(explore_llm(
                     t=repair_t,
@@ -199,7 +203,8 @@ class SEIDR:
                     code=code,
                     bug_summary=bug_summary,
                     log_llm_call=self.log_llm_call,
-                    batch_size=repair_batch_size
+                    batch_size=repair_batch_size,
+                    base_url=self.ollama_url
             ), self.repairs_per_explanation):
                 yield repair
 

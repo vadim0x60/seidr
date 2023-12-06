@@ -3,6 +3,7 @@ import os
 import random
 import traceback
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 import psb2
@@ -64,6 +65,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   log: str = 'ERROR',
                   model_name: str = 'gpt-3.5-turbo',
                   lexicase_selection: bool = False,
+                  ollama_url: Optional[str] = "http://n014:12343",
                   **kwargs):
     """Generate and repair programs in PSB2
 
@@ -187,6 +189,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
         log_solution=solutions_logger,
         log_llm_call=log_llm_call,
         max_programs=max_programs,
+        ollama_url=ollama_url
     )
 
     solution = seidr.develop(start_code=start_code)

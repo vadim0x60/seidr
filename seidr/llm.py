@@ -4,7 +4,7 @@ import os
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI, ChatOllama
 from collections.abc import Iterable
-from typing import Callable
+from typing import Callable, Optional
 import re
 from black import format_str, FileMode
 from pytest_codeblocks import extract_from_buffer
@@ -63,7 +63,8 @@ def run_black(code: str) -> str:
 
 def create_chain(temperature: float = 0.,
                  mode: str = "generate",
-                 model_name: str = "codellama:7b-instruct"):
+                 model_name: str = "codellama:7b-instruct",
+                 base_url: Optional[str] = None):
     chat_prompt_template = create_chat_prompt_template(mode)
     if "gpt" in model_name.lower():
         chat_model = ChatOpenAI(
@@ -74,7 +75,7 @@ def create_chain(temperature: float = 0.,
         )
     elif "llama" in model_name.lower():
         chat_model = ChatOllama(
-            base_url="http://n014:12343",
+            base_url=base_url,
             model=model_name,
             temperature=temperature
         )
@@ -88,10 +89,11 @@ def query_llm(
         mode: str = "generate",
         model_name: str = "codellama:7b-instruct",
         n: int = 1,
+        base_url="http://n014:12343",
         **kwargs
 ) -> list[str]:
     logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}\n")
-    chain = create_chain(temperature=temperature, mode=mode, model_name=model_name)
+    chain = create_chain(temperature=temperature, mode=mode, model_name=model_name, base_url=base_url)
     kwargs['language'] = language
     result = chain.generate([kwargs for _ in range(n)])
 
@@ -125,6 +127,7 @@ def explore_llm(
         t: float = 0.0,
         delta_t: float = 0.2,
         batch_size: int = 1,
+        base_url: str = "http://n014:12343",
         **kwargs
 ) -> Iterable[str]:
     while t <= 1:
@@ -135,6 +138,7 @@ def explore_llm(
             mode=mode,
             model_name=model_name,
             n=batch_size,
+            base_url=base_url,
             **kwargs
         )
 
