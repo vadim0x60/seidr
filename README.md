@@ -3,6 +3,10 @@
 A framework for AI-assisted program synthesis.
 Given a problem description and some input-output examples, the framework generates a program that solves the problem.
 
+## Paper
+
+You can find an in-depth discussion of this tool, the philosophy it implements and its usage in our paper, [Fully Autonomous Programming with Large Language Models](https://dl.acm.org/doi/abs/10.1145/3583131.3590481). Consider citing it if you use SEIDR in your research.
+
 ## Usage
 
 ```
@@ -12,7 +16,7 @@ help(develop)
 
 ## Reproducing the experiments from our paper
 
-The experiments reported in [the blog post](https://vadim.me/posts/unreasonable) and in the upcoming paper are contained in `benchmark.py` file. When you run this file, the AI-generated programs are commited to a dedicated github repository, while the metrics (i.e. how many tests every program passes) will be logged in your [Weights and Biases](https://wandb.ai)
+The experiments are contained in `benchmark.py` and `benchmark_humaneval.py` files. When you run this file, the AI-generated programs are commited to a dedicated github repository, while the metrics (i.e. how many tests every program passes) will be logged in your [Weights and Biases](https://wandb.ai)
 
 ### Set up Weights and Biases
 
@@ -30,17 +34,12 @@ The experiments reported in [the blog post](https://vadim.me/posts/unreasonable)
 
 Don't be fooled by the variable names, you can of course use a non-github git hosting.
 
-### Set up OpenAI access
+### Set up language model access
 
-It's 2022 and the language model inference happens in the cloud.
-You are going to need an OpenAI account with access to `code-davinci-001` and `code-davinci-edit-001`
-Set `OPENAI_API_KEY` environment variable to your access token.
+It's 2023, we are not going to tell you which Large Language Model to use or whether to run it in the cloud or locally.
+SEIDR runs on langchain and supports OpenAI and Ollama out of the box + any langchain-compatible model inference backend with a little coding.
+Make sure you have Ollama server running or `OPENAI_API_KEY` environment variable set.
 
 ### Run the experiments
 
-If you're using [slurm](https://slurm.schedmd.com/), write a `run.sh` file with `python benchmark.py` and run it with `sbatch run.sh --array=0-191`.
-If not, run `TASK_ID=n python benchmark.py` to re-run one of our 192 experiments exactly, or set the parameters yourself:
-
-```
-python benchmark.py --branching-factor 200 --language C++ --problem fizz-buzz
-```
+If you're using [slurm](https://slurm.schedmd.com/), the (template) files you need to `sbatch` are found in `example_scripts` folder. They will require some editing for your setup. If you don't use slurm, run `benchmark.py` directly.
