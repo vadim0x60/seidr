@@ -32,11 +32,6 @@ debug_templates = {int(ix.strip()): prompt.strip()
 def title2kebabcase(title):
     return '-'.join(word.lower() for word in title.split(' '))
 
-
-pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
-                                   sep='\t', index_col=['Problem'])
-pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
-
 def is_already_solved(solutions_logger, test_data, language):
     try:
         return Program(workdir=solutions_logger.dir,
@@ -73,7 +68,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   log: str = 'ERROR',
                   model_name: str = 'gpt-3.5-turbo',
                   lexicase_selection: bool = False,
-                  ollama_url: Optional[str] = "http://n014:12343",
+                  ollama_url: Optional[str] = "http://localhost:11434",
                   **kwargs):
     """Generate and repair programs in PSB2
 

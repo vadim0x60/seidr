@@ -16,22 +16,6 @@ from seidr.prompt import create_chat_prompt_template
 token_error_message = 'tokens for the input and instruction but the maximum allowed is 3000. ' \
                       'Please reduce the input or instruction length.'
 
-def create_ollama_chain(
-        model_name: str = "codellama:7b-instruct",
-        temperature: float = 0.0,
-        mode: str = "generate"
-) -> LLMChain:
-    """Create an Ollama chain with a custom prompt"""
-
-    chat_model = ChatOllama(
-        model=model_name,
-        temperature=temperature
-    )
-
-    chat_prompt_template = create_chat_prompt_template(mode)
-
-    return LLMChain(llm=chat_model, prompt=chat_prompt_template)
-
 
 def extract_codes(
         message_content: str,
@@ -85,11 +69,11 @@ def create_chain(temperature: float = 0.,
 
 def query_llm(
         language: Language | str,
+        base_url: str,
         temperature: float = 0.,
         mode: str = "generate",
         model_name: str = "codellama:7b-instruct",
         n: int = 1,
-        base_url="http://n014:12343",
         **kwargs
 ) -> list[str]:
     logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}\n")
@@ -121,13 +105,13 @@ def query_llm(
 
 def explore_llm(
         language: Language | str,
+        base_url: str,
         log_llm_call: Callable = lambda **kwargs: None,
         mode: str = "generate",
         model_name: str = "codellama:7b-instruct",
         t: float = 0.0,
         delta_t: float = 0.2,
         batch_size: int = 1,
-        base_url: str = "http://n014:12343",
         **kwargs
 ) -> Iterable[str]:
     while t <= 1:
