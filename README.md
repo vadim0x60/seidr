@@ -33,8 +33,20 @@ Note that you can use a non-GitHub git hosting.
 
 #### Set up OpenAI access
 
-OpenAI account is needed with access to `gpt-3.5-turbo`
-Set `OPENAI_API_KEY` environment variable to your access token.
+OpenAI account is needed with access to `gpt-3.5-turbo` and 
+an `OPENAI_API_KEY` environment variable 
+set to your OpenAI API access token.
+
+
+#### Set up Ollama
+
+Run [Ollama](https://ollama.ai/) with CodeLlama or [another model](https://ollama.ai/library) locally 
+or on a server. 
+In the latter case, start the Ollama server with the following commands and note the `URL:PORT` pair:
+```
+OLLAMA_HOST=URL:PORT ollama serve &
+OLLAMA_HOST=URL:PORT ollama pull codellama:34b-instruct &
+```
 
 Example `.config` file layout:
 ```bash
@@ -76,6 +88,24 @@ python3 benchmark.py \
     --lexicase_selection False \
     --dataset psb2 \
     --model_name gpt-3.5-turbo
+```
+
+To run an example with SEIDR with CodeLlama served by Ollama at `URL:PORT`, run the following:
+```
+python3 benchmark.py \
+    --task_id 2202 \
+    --problem basement \
+    --language C++ \
+    --max_programs 100 \
+    --drafts_per_prompt 2 \
+    --explanations_per_program 2 \
+    --repairs_per_explanation 2 \
+    --beam_width 2 \
+    --log INFO \
+    --lexicase_selection False \
+    --dataset psb2 \
+    --model_name codellama:34b-instruct \
+    --ollama_url "http://URL:PORT"
 ```
 
 Example Slurm scripts are stored in `example_scripts/` and tables with hyperparameters in `/config`
