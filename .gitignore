@@ -30,6 +30,7 @@ solutions
 # Slurm
 scripts/
 create_scripts.py
+config/
 config/bf_experiments/
 
 poetry.lock
