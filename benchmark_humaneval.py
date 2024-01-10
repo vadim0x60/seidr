@@ -7,7 +7,7 @@ import random
 import traceback
 import wandb
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from fire import Fire
 from programlib import Program, Language
@@ -30,7 +30,7 @@ debug_templates = {int(ix.strip()): prompt.strip()
 
 def is_already_solved(
         solutions_logger: FileLogger,
-        test_data: List[List[str] | str, List[str] | str],
+        test_data: Tuple[List[str] | str, List[str] | str],
         language: Language) -> Program | bool:
     """Checks if the currently logged solution passes all tests in `test_data`.
     Returns False if a Program class instance cannot be created"""

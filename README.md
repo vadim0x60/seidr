@@ -6,8 +6,8 @@ Given a problem description and some input-output examples, the framework genera
 ## Usage
 
 ```
-from seidr import develop
-help(develop)
+from seidr import dev
+help(dev)
 ```
 
 ## Reproducing the experiments from our paper

@@ -1,5 +1,5 @@
 from string import Template
-from typing import List
+from typing import List, Tuple
 
 from langchain.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
 from programlib import language_
@@ -7,7 +7,7 @@ from programlib import language_
 from seidr import get_template
 
 
-def initial_prompt(task_description: str, examples: List[List[str], List[str]]):
+def initial_prompt(task_description: str, examples: Tuple[List[str], List[str]]):
     """Create a docstring for the draft program (to be used in the generate mode)"""
     prompt = task_description
     prompt += '\nFor example,'

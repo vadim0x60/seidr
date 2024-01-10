@@ -3,7 +3,7 @@ import os
 import random
 import traceback
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import pandas as pd
 import psb2
@@ -45,7 +45,7 @@ pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
 def is_already_solved(
         solutions_logger: FileLogger,
-        test_data: List[List[str] | str, List[str] | str],
+        test_data: Tuple[List[str] | str, List[str] | str],
         language: Language) -> Program | bool:
     """Checks if the currently logged solution passes all tests in `test_data`.
     Returns False if a Program class instance cannot be created"""

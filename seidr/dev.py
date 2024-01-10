@@ -23,7 +23,7 @@ def standard_ranking(
 
 def lexicase_ranking(
         candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]]
-) -> Generator[Tuple[str, str, list[Callable[[Program], Evaluation]]]]:
+) -> Tuple[str, str, list[Callable[[Program], Evaluation]]]:
     pool = [evals for prompt, code, evals in candidates]
 
     case_count = min(len(evals) for evals in pool)
