@@ -29,10 +29,8 @@ debug_templates = [line.split('\t')
 debug_templates = {int(ix.strip()): prompt.strip() 
                    for ix, prompt in debug_templates }
 
-def title2kebabcase(title):
-    return '-'.join(word.lower() for word in title.split(' '))
-
 def is_already_solved(solutions_logger, test_data, language):
+    """Checks if the currently logged solution passes all tests in `test_data`"""
     try:
         return Program(workdir=solutions_logger.dir,
                        name=solutions_logger.filename,
@@ -42,7 +40,7 @@ def is_already_solved(solutions_logger, test_data, language):
 
 
 def load_humaneval_problem(
-        data_path: pathlib.Path,
+        data_path: pathlib.Path | str,
         language: str = "Python",
         problem: str = "Python/0"
 ) -> (str, List[str], str):
@@ -78,16 +76,17 @@ def run_benchmark(problem: str = 'fizz-buzz',
         name of a problem in PSB 2
     language : str
         programming language
-    tree_arity : int
-        number of leaves to create at level n+1
-        from each current leaf at level n in the beam
     max_programs : int
-        maximum number of elements in the resulting beam
+        maximum number of elements in the resulting beam search tree
+    drafts_per_prompt : int
+        number of drafted problem solutions to be generated from a prompt
+    explanations_per_program : int
+        number of natural language explanations to give for one program (that does not pass all validation tests)
+    repairs_per_explanation : int
+        number of debugging attempts for each error explanation
     beam_width : int
         number of elements with top score that will be kept in the beam
         out of all leaves at the newly created level n+1
-    debug_prompt_id : int
-        prompt template id from `./debug-prompt-templates/prompts.txt
     seed : int
         used to fix seed so that the same I/O pairs are fetched from PSB2
     valid_examples : int
@@ -101,15 +100,14 @@ def run_benchmark(problem: str = 'fizz-buzz',
     prompt_examples : int
         number of I/O pairs taken from n_train_pairs to generate initial prompt
         for Codex completion model
-    batch_size : int
-        number of Codex outputs for the same prompt that will be generated at once
-        for one parent during the beam search
-    mode : str
-        'execute' or 'debug'
+    log : str
+        logging mode, mostly used INFO, ERROR or DEBUG in our experiments
     model_name : str
         name of the OpenAI or Ollama model to use
     lexicase_selection : bool
         whether to use lexicase selection or just sort by score
+    ollama_url : str
+        link to the ollama cluster, default is localhost
     """
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
@@ -164,7 +162,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
     )
 
     prompt_data = tests[:min(prompt_examples, len(tests))]
-    valid_data = tests[:min(valid_examples, len(tests))]
+    valid_data = tests
     test_data = tests
 
     if len(test_data) == 0:

@@ -9,7 +9,7 @@ class Evaluation(ABC):
     Produces a binary pass/fail result, a float score, and a text report
     """
 
-    def __init__(self, SUT, passing_score=1):
+    def __init__(self, SUT, passing_score=1.):
         """
         SUT: System Under Test
         passing_score: float score required to pass the evaluation
