@@ -3,13 +3,14 @@ from programlib import Program
 
 dont_change = 'Do not change anything'
 
+
 class Evaluation(ABC):
     """
-    A method for evaluating a system
+    A class for evaluating SEIDR performance by running tests on generated programs (problem solutions)
     Produces a binary pass/fail result, a float score, and a text report
     """
 
-    def __init__(self, SUT, passing_score=1.):
+    def __init__(self, SUT: Program, passing_score: float = 1.):
         """
         SUT: System Under Test
         passing_score: float score required to pass the evaluation
@@ -30,8 +31,14 @@ class Evaluation(ABC):
         """Produce a text report"""
         raise NotImplementedError
 
+    def run_test(self, rerun=True):
+        """Test the program on a given I/O pair and update the score, errors or other output.
+        Force test by default if `rerun=True`"""
+        raise NotImplementedError
+
+
 class IOMatch(Evaluation):
-    def __init__(self, code, language, input, output, 
+    def __init__(self, code, language, input, output,
                  task_description=None):
         program = Program(code, language=language)
         super().__init__(program)
@@ -59,8 +66,8 @@ class IOMatch(Evaluation):
             input = '\n'.join(self.test_run.input_lines)
             expected_output = '\n'.join(self.test_run.expected_output_lines)
             output = '\n'.join(self.test_run.output_lines)
-            return  f"it must return {expected_output} for input {input}, but it returns {output}. "
-                    
+            return f"it must return {expected_output} for input {input}, but it returns {output}. "
+
 
 class UnitTest(Evaluation):
     def __init__(self, code, language, test):
@@ -78,7 +85,7 @@ class UnitTest(Evaluation):
     def score(self) -> float:
         self.run_test(rerun=False)
         return 0.0 if self.SUT.exitstatus else 1.0
-    
+
     def check(self) -> bool:
         self.run_test(rerun=False)
         return not self.SUT.exitstatus
@@ -88,5 +95,5 @@ class UnitTest(Evaluation):
         if self.check():
             return dont_change
         else:
-             self.output = "\n".join(self.output) if type(self.output) == list else self.output
-             return self.output
+            self.output = "\n".join(self.output) if type(self.output) == list else self.output
+            return self.output

@@ -89,7 +89,7 @@ int main(){
 }
 
 
-def load_jsonl(input_path: pathlib.Path or str) -> list:
+def load_jsonl(input_path: pathlib.Path or str) -> List[dict | any]:
     """
     Read list of objects from a json-lines file.
     """
@@ -102,7 +102,7 @@ def load_jsonl(input_path: pathlib.Path or str) -> list:
 
 
 class ParseHumanEvalTests:
-
+    """Parser for HumanEval tests"""
     def __init__(self, language: str, data: dict[str, Any]):
         self.language = language
 
@@ -110,22 +110,27 @@ class ParseHumanEvalTests:
         self.test_code = data["test"]
 
     def get_test_start(self) -> str:
+        """Find the starting point of the next test"""
         raise NotImplementedError
 
     def get_number_assert_words(self) -> int:
+        """Count number of assertions"""
         return self.test_code.count(" assert ")
 
     def get_last_line(self) -> str:
+        """Get the line where the test function is executed"""
         code = self.test_code.strip()
         lines = code.split("\n")
         return lines[-1]
 
     def split_tests(self) -> List[str]:
+        """Parse one test with several assertions to a list of tests"""
         raise NotImplementedError
 
 
 class ParseHumanEvalPythonTests(ParseHumanEvalTests):
-    def __init__(self, language, data):
+    """Parser for HumanEval-Python tests"""
+    def __init__(self, language: str, data: dict[str, Any]):
         super().__init__(language, data)
 
     def get_number_assert_words(self) -> int:
@@ -184,6 +189,7 @@ class ParseHumanEvalCppTests(ParseHumanEvalTests):
         return self.test_code[:self.test_code.find("\n    assert")]
 
     def add_tabulation_to_assertion(self) -> str:
+        """Custom formatting for C++: add tabulation"""
         if self.task_id.split("/")[1] not in [str(i) for i in [32, 38, 44, 50, 53]]:
             code = re.sub(pattern="\\n\s+assert", repl="\n    assert", string=self.test_code)
             return code

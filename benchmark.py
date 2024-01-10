@@ -3,13 +3,13 @@ import os
 import random
 import traceback
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import pandas as pd
 import psb2
 from fire import Fire
 from more_itertools import chunked
-from programlib import Program
+from programlib import Program, Language
 from programlib import language_
 
 import wandb
@@ -33,7 +33,8 @@ debug_templates = {int(ix.strip()): prompt.strip()
                    for ix, prompt in debug_templates}
 
 
-def title2kebabcase(title):
+def title2kebabcase(title: str) -> str:
+    """Replace spaces with hyphens"""
     return '-'.join(word.lower() for word in title.split(' '))
 
 
@@ -42,7 +43,12 @@ pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
 
-def is_already_solved(solutions_logger, test_data, language):
+def is_already_solved(
+        solutions_logger: FileLogger,
+        test_data: List[List[str] | str, List[str] | str],
+        language: Language) -> Program | bool:
+    """Checks if the currently logged solution passes all tests in `test_data`.
+    Returns False if a Program class instance cannot be created"""
     try:
         return Program(workdir=solutions_logger.dir,
                        name=solutions_logger.filename,
@@ -76,7 +82,13 @@ def run_benchmark(problem: str = 'fizz-buzz',
     language : str
         programming language
     max_programs : int
-        maximum number of elements in the resulting beam
+        maximum number of elements in the resulting beam search tree
+    drafts_per_prompt : int
+        number of drafted problem solutions to be generated from a prompt
+    explanations_per_program : int
+        number of natural language explanations to give for one program (that does not pass all validation tests)
+    repairs_per_explanation : int
+        number of debugging attempts for each error explanation
     beam_width : int
         number of elements with top score that will be kept in the beam
         out of all leaves at the newly created level n+1
@@ -93,12 +105,14 @@ def run_benchmark(problem: str = 'fizz-buzz',
     prompt_examples : int
         number of I/O pairs taken from n_train_pairs to generate initial prompt
         for Codex completion model
-    mode : str
-        'execute' or 'debug'
+    log : str
+        logging mode, mostly used INFO, ERROR or DEBUG in our experiments
     model_name : str
         name of the OpenAI or Ollama model to use
     lexicase_selection : bool
         whether to use lexicase selection or just sort by score
+    ollama_url : str
+        link to the ollama cluster, default is localhost
     """
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
@@ -161,6 +175,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
     call_count = 0
 
     def log_llm_call(**kwargs):
+        """Update and log the number of LLM calls"""
         nonlocal call_count
         wandb.log({'llm_calls': call_count})
         call_count += 1

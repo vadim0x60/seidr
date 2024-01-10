@@ -39,16 +39,21 @@ def extract_codes(
 
 
 def run_black(code: str) -> str:
+    """Format (Python) code with Black"""
     try:
         return format_str(code, mode=FileMode())
     except Exception as e:
         logging.info(e)
         return code
 
-def create_chain(temperature: float = 0.,
-                 mode: str = "generate",
-                 model_name: str = "codellama:7b-instruct",
-                 base_url: Optional[str] = None):
+
+def create_chain(
+        temperature: float = 0.,
+        mode: str = "generate",
+        model_name: str = "codellama:7b-instruct",
+        base_url: Optional[str] = None
+) -> LLMChain:
+    """Set up a LangChain LLMChain"""
     chat_prompt_template = create_chat_prompt_template(mode)
     if "gpt" in model_name.lower():
         chat_model = ChatOpenAI(
@@ -76,6 +81,7 @@ def query_llm(
         n: int = 1,
         **kwargs
 ) -> list[str]:
+    """Generate `n` outputs with an LLM"""
     logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}\n")
     chain = create_chain(temperature=temperature, mode=mode, model_name=model_name, base_url=base_url)
     kwargs['language'] = language
@@ -92,7 +98,7 @@ def query_llm(
         logging.info(f"Generating explanations for code: \n{kwargs['code']}\n")
 
     if mode != "explain_bugs":
-        result = [c for r in result 
+        result = [c for r in result
                   for c in extract_codes(message_content=r, language=language)]
         result_logging = "\n\n".join(result)
         logging.info(f"LLM output after code extraction: \n{result_logging}\n")
@@ -114,6 +120,7 @@ def explore_llm(
         batch_size: int = 1,
         **kwargs
 ) -> Iterable[str]:
+    """Generate LLM outputs and increase temperature for every new batch"""
     while t <= 1:
         log_llm_call(**locals())
         yield from query_llm(
@@ -128,8 +135,10 @@ def explore_llm(
 
         t += delta_t
 
+
 if __name__ == '__main__':
     import itertools
+
     logging.basicConfig(level=logging.INFO)
 
     fizz_buzz = """
@@ -141,9 +150,9 @@ if __name__ == '__main__':
     """
 
     for model_name in ['codellama:34b-instruct', 'gpt-3.5-turbo']:
-        for code in itertools.islice(explore_llm(language='Python', 
-                                                task_name='fizz-buzz', 
-                                                task_description=fizz_buzz, 
-                                                start_code='', 
-                                                model_name=model_name), 10):
+        for code in itertools.islice(explore_llm(language='Python',
+                                                 task_name='fizz-buzz',
+                                                 task_description=fizz_buzz,
+                                                 start_code='',
+                                                 model_name=model_name), 10):
             print(code)

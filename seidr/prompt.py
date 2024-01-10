@@ -1,4 +1,5 @@
 from string import Template
+from typing import List
 
 from langchain.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
 from programlib import language_
@@ -6,7 +7,8 @@ from programlib import language_
 from seidr import get_template
 
 
-def initial_prompt(task_description, examples):
+def initial_prompt(task_description: str, examples: List[List[str], List[str]]):
+    """Create a docstring for the draft program (to be used in the generate mode)"""
     prompt = task_description
     prompt += '\nFor example,'
     for sample_inputs, sample_outputs in examples:
@@ -20,7 +22,8 @@ def initial_prompt(task_description, examples):
     return prompt
 
 
-def start_coding(prompt, language='C++'):
+def start_coding(prompt: str, language: str = 'C++') -> str:
+    """Fill in the template for the draft program with the first lines"""
     language = language_(language)
     template = language.source.format(name='template')
     template = get_template(template)

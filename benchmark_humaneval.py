@@ -5,15 +5,14 @@ import os
 import pathlib
 import random
 import traceback
+import wandb
 from pathlib import Path
 from typing import List, Optional
 
-import pandas as pd
 from fire import Fire
-from programlib import Program
+from programlib import Program, Language
 from programlib import language_
 
-import wandb
 from parse_humaneval_tests import load_jsonl
 from seidr import get_template
 from seidr.dev import SEIDR
@@ -29,8 +28,12 @@ debug_templates = [line.split('\t')
 debug_templates = {int(ix.strip()): prompt.strip() 
                    for ix, prompt in debug_templates }
 
-def is_already_solved(solutions_logger, test_data, language):
-    """Checks if the currently logged solution passes all tests in `test_data`"""
+def is_already_solved(
+        solutions_logger: FileLogger,
+        test_data: List[List[str] | str, List[str] | str],
+        language: Language) -> Program | bool:
+    """Checks if the currently logged solution passes all tests in `test_data`.
+    Returns False if a Program class instance cannot be created"""
     try:
         return Program(workdir=solutions_logger.dir,
                        name=solutions_logger.filename,
@@ -68,7 +71,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   lexicase_selection: bool = False,
                   ollama_url: Optional[str] = "http://localhost:11434",
                   **kwargs):
-    """Generate and repair programs in PSB2
+    """Generate and repair programs in HumanEval (C++ and Python)
 
     Parameters
     ----------
@@ -175,6 +178,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
 
     call_count = 0
     def log_llm_call(**kwargs):
+        """Update and log the number of LLM calls"""
         nonlocal call_count
         wandb.log({'llm_calls': call_count})
         call_count += 1

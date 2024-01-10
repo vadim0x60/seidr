@@ -1,28 +1,19 @@
 import itertools
 import logging
 from programlib import Program, Language
-from typing import Callable, Optional, Iterable
+from typing import Callable, Optional, Iterable, Tuple, List, Generator
 import random
 
 from seidr.llm import explore_llm
 from seidr.eval import Evaluation
 
 
-def rolling_best(objects, max_score=1, metric=lambda x: x):
-    best_score = None
-
-    for object in objects:
-        score = metric(object)
-        if best_score is None or score > best_score:
-            best_score = score
-            yield object
-
-        if best_score >= max_score:
-            break
-
-
-def standard_ranking(candidates):
-    def avg_score(candidate):
+def standard_ranking(
+        candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]]
+) -> List[Tuple[str, str, list[Callable[[Program], Evaluation]]]]:
+    def avg_score(
+        candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]]
+) -> float:
         prompt, code, evals = candidate
         score = sum(e.score() for e in evals) / len(evals)
         return score
@@ -30,7 +21,9 @@ def standard_ranking(candidates):
     return sorted(candidates, key=avg_score, reverse=True)
 
 
-def lexicase_ranking(candidates):
+def lexicase_ranking(
+        candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]]
+) -> Generator[Tuple[str, str, list[Callable[[Program], Evaluation]]]]:
     pool = [evals for prompt, code, evals in candidates]
 
     case_count = min(len(evals) for evals in pool)
@@ -68,7 +61,12 @@ def lexicase_ranking(candidates):
             del candidates[idx]
 
 
-def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
+def beam_search(
+        beam: List | Generator,
+        update: Callable,
+        ranking: Callable = standard_ranking,
+        beam_width: int = 100
+) -> Generator:
     """Generic evolutionary algorithm for improving anything"""
     while True:
         parents = []
@@ -83,9 +81,10 @@ def beam_search(beam, update, ranking=standard_ranking, beam_width=100):
         beam = (child for parent in parents for child in update(parent))
 
 
-def distribute_heat(heat, n, batch_size):
-    """Calculate steps for increasing temperature of an LLM that will be distributed over the batch."""
-    # Setting: we generate `n` outputs from an LLM by generating `batch_size` outputs at once,
+def distribute_heat(heat: float, n: int, batch_size: int) -> Tuple[float, float]:
+    """Calculate the start temperature `t` and steps `delta_t`
+    for increasing temperature of an LLM that will be distributed over the batch. """
+    # Setting: we generate `n` outputs in total from an LLM by generating `batch_size` outputs at once,
     # Note that we use `batch_size`=1 for langchain models
     if n == 1:
         t = 0
@@ -107,6 +106,7 @@ def print_code(code, **vars):
 
 
 class SEIDR:
+    """Generate, test and debug programs for a set of given problem descriptions and tests"""
     def __init__(self,
                  task_name: str,
                  task_description: str,
@@ -150,6 +150,8 @@ class SEIDR:
                 self.batch_size = 1
 
     def draft(self, start_code: str = '') -> Iterable[str]:
+        """Create a draft solution with the "generate" prompt template
+        that requires first code lines in `start_code`, task description and programming language"""
         batch_size = min(self.batch_size, self.drafts_per_prompt)
         t, delta_t = distribute_heat(1, self.drafts_per_prompt, batch_size)
 
@@ -168,7 +170,8 @@ class SEIDR:
         ), self.drafts_per_prompt)
 
     def repair(self, code: str, feedback: str) -> Iterable[str]:
-        """Generate n attempts to fix program so that it passes tests"""
+        """Generate `self.explanations_per_program` * `self.repairs_per_explanation` attempts
+        to fix the program in `code` so that it passes tests"""
         explain_batch_size = min(self.batch_size, self.explanations_per_program)
         repair_batch_size = min(self.batch_size, self.repairs_per_explanation)
 
@@ -211,7 +214,7 @@ class SEIDR:
     def develop(self,
                 start_code: str = '') -> str:
         """
-        Write a program in language that solves task and passes tests.
+        Write a program in a programming language that solves task and passes tests.
         Solve repair-rewrite trade-off with beam search of given beam size
 
         examples is a sequence of (inputs, outputs) pairs
@@ -226,7 +229,9 @@ class SEIDR:
         passes all tests.
         """
 
-        def have_kids(candidate):
+        def have_kids(
+                candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]]
+        ) -> Tuple[str, str, list[Callable[[Program], Evaluation]]]:
             prompt, code, evals = candidate
             worst_eval = min(evals, key=lambda e: e.score())
             feedback = worst_eval.pen_report()

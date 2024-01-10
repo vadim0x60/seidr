@@ -1,4 +1,4 @@
-"""Create a separate file with a list of experiments and their Slurm task id's"""
+"""Create a separate CSV file with a list of experiments and their Slurm task id's"""
 import argparse
 import logging
 import os
