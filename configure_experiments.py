@@ -1,4 +1,4 @@
-"""Create a separate file with a list of experiments and their Slurm task id's"""
+"""Create a separate CSV file with a list of experiments and their Slurm task id's"""
 import argparse
 import logging
 import os
@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, List
 
 from benchmark import task_descriptions
-
 
 bf_experiments = [
     {'problem': problem,
@@ -31,10 +30,9 @@ humaneval_task_ids = {
     "python": [f"Python/{i}" for i in range(164)]
 }
 
-
 bf_experiments_humaneval = []
 
-for language in ["Python"]:# ["C++", "Python"]:
+for language in ["Python"]:  # ["C++", "Python"]:
     bf_experiments_humaneval += [
         {'problem': problem,
          'language': language,
@@ -50,7 +48,7 @@ for language in ["Python"]:# ["C++", "Python"]:
 
 bf_experiments_humaneval_lexicase_py = []
 
-for language in ["Python"]:  # ["C++", "Python"]:
+for language in ["Python"]:
     bf_experiments_humaneval_lexicase_py += [
         {'problem': problem,
          'language': language,
@@ -67,7 +65,7 @@ for language in ["Python"]:  # ["C++", "Python"]:
 
 bf_experiments_humaneval_lexicase_cpp = []
 
-for language in ["Python"]:  # ["C++", "Python"]:
+for language in ["C++"]:
     bf_experiments_humaneval_lexicase_cpp += [
         {'problem': problem,
          'language': language,
@@ -81,7 +79,6 @@ for language in ["Python"]:  # ["C++", "Python"]:
         for branching_factor in (2, 4, 16, 10)
         for problem in humaneval_task_ids[language.lower()]
     ]
-
 
 bf_experiments_lexicase = [
     {'problem': problem,
@@ -97,6 +94,268 @@ bf_experiments_lexicase = [
     for problem in task_descriptions.keys()
     for language in ('C++', 'Python')
 ]
+
+bf_psb2_gpt35_no_lexicase = [
+    {
+        'problem': problem,
+        'language': language,
+        'branching_factor': branching_factor,
+        'max_programs': 100,
+        'drafts_per_prompt': branching_factor,
+        'explanations_per_program': 2,
+        'repairs_per_explanation': branching_factor,
+        'beam_width': branching_factor,
+        'log': 'INFO',
+        'lexicase_selection': False,
+        'dataset': 'psb2',
+        'model_name': 'gpt-3.5-turbo'
+    }
+    for branching_factor in (2, 4, 16, 1, 10, 100)
+    for problem in task_descriptions.keys()
+    for language in ('C++', 'Python')
+]
+
+bf_psb2_gpt35_lexicase = [
+    {
+        'problem': problem,
+        'language': language,
+        'branching_factor': branching_factor,
+        'max_programs': 100,
+        'drafts_per_prompt': branching_factor,
+        'explanations_per_program': 2,
+        'repairs_per_explanation': branching_factor,
+        'beam_width': branching_factor,
+        'log': 'INFO',
+        'lexicase_selection': True,
+        'dataset': 'psb2',
+        'model_name': 'gpt-3.5-turbo'
+    }
+    for branching_factor in (2, 4, 16, 10)
+    for problem in task_descriptions.keys()
+    for language in ('C++', 'Python')
+]
+
+bf_psb2_codellama_no_lexicase = [
+    {
+        'problem': problem,
+        'language': language,
+        'branching_factor': branching_factor,
+        'max_programs': 100,
+        'drafts_per_prompt': branching_factor,
+        'explanations_per_program': 2,
+        'repairs_per_explanation': branching_factor,
+        'beam_width': branching_factor,
+        'log': 'INFO',
+        'lexicase_selection': False,
+        'dataset': 'psb2',
+        'model_name': 'codellama:34b-instruct'
+    }
+    for branching_factor in (2, 4, 16, 1, 10, 100)
+    for problem in task_descriptions.keys()
+    for language in ('C++', 'Python')
+]
+
+bf_psb2_codellama_lexicase = [
+    {
+        'problem': problem,
+        'language': language,
+        'branching_factor': branching_factor,
+        'max_programs': 100,
+        'drafts_per_prompt': branching_factor,
+        'explanations_per_program': 2,
+        'repairs_per_explanation': branching_factor,
+        'beam_width': branching_factor,
+        'log': 'INFO',
+        'lexicase_selection': True,
+        'dataset': 'psb2',
+        'model_name': 'codellama:34b-instruct'
+    }
+    for branching_factor in (2, 4, 16, 10)
+    for problem in task_descriptions.keys()
+    for language in ('C++', 'Python')
+]
+
+bf_psb2_codellama = bf_psb2_codellama_no_lexicase + bf_psb2_codellama_lexicase
+
+
+# HumanEval
+
+bf_humaneval_gpt35_no_lexicase_py = []
+
+for language in ["Python"]:
+    bf_humaneval_gpt35_no_lexicase_py += [
+        {
+            'problem': problem,
+            'language': language,
+            'branching_factor': branching_factor,
+            'max_programs': 100,
+            'drafts_per_prompt': branching_factor,
+            'explanations_per_program': 2,
+            'repairs_per_explanation': branching_factor,
+            'beam_width': branching_factor,
+            'log': 'INFO',
+            'lexicase_selection': False,
+            'dataset': 'humaneval',
+            'model_name': 'gpt-3.5-turbo'
+        }
+        for branching_factor in (2, 4, 16, 1, 10, 100)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+bf_humaneval_codellama_no_lexicase_py = []
+
+for language in ["Python"]:
+    bf_humaneval_codellama_no_lexicase_py += [
+        {
+            'problem': problem,
+            'language': language,
+            'branching_factor': branching_factor,
+            'max_programs': 100,
+            'drafts_per_prompt': branching_factor,
+            'explanations_per_program': 2,
+            'repairs_per_explanation': branching_factor,
+            'beam_width': branching_factor,
+            'log': 'INFO',
+            'lexicase_selection': False,
+            'dataset': 'humaneval',
+            'model_name': 'codellama:34b-instruct'
+        }
+        for branching_factor in (2, 4, 16, 1, 10, 100)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+
+
+bf_humaneval_gpt35_no_lexicase_cpp = []
+
+for language in ["C++"]:
+    bf_humaneval_gpt35_no_lexicase_cpp += [
+        {
+            'problem': problem,
+            'language': language,
+            'branching_factor': branching_factor,
+            'max_programs': 100,
+            'drafts_per_prompt': branching_factor,
+            'explanations_per_program': 2,
+            'repairs_per_explanation': branching_factor,
+            'beam_width': branching_factor,
+            'log': 'INFO',
+            'lexicase_selection': False,
+            'dataset': 'humaneval',
+            'model_name': 'gpt-3.5-turbo'
+        }
+        for branching_factor in (2, 4, 16, 1, 10, 100)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+bf_humaneval_codellama_no_lexicase_cpp = []
+
+for language in ["C++"]:
+    bf_humaneval_codellama_no_lexicase_cpp += [
+        {
+            'problem': problem,
+            'language': language,
+            'branching_factor': branching_factor,
+            'max_programs': 100,
+            'drafts_per_prompt': branching_factor,
+            'explanations_per_program': 2,
+            'repairs_per_explanation': branching_factor,
+            'beam_width': branching_factor,
+            'log': 'INFO',
+            'lexicase_selection': False,
+            'dataset': 'humaneval',
+            'model_name': 'codellama:34b-instruct'
+        }
+        for branching_factor in (2, 4, 16, 1, 10, 100)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+
+bf_humaneval_gpt35_lexicase_py = []
+for language in ["Python"]:
+    bf_humaneval_gpt35_lexicase_py += [
+        {
+            'problem': problem,
+            'language': language,
+            'branching_factor': branching_factor,
+            'max_programs': 100,
+            'drafts_per_prompt': branching_factor,
+            'explanations_per_program': 2,
+            'repairs_per_explanation': branching_factor,
+            'beam_width': branching_factor,
+            'log': 'INFO',
+            'lexicase_selection': True,
+            'dataset': 'humaneval',
+            'model_name': 'gpt-3.5-turbo'
+        }
+        for branching_factor in (2, 4, 16, 10)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+
+bf_humaneval_codellama_lexicase_py = []
+for language in ["Python"]:
+    bf_humaneval_codellama_lexicase_py += [
+        {
+            'problem': problem,
+            'language': language,
+            'branching_factor': branching_factor,
+            'max_programs': 100,
+            'drafts_per_prompt': branching_factor,
+            'explanations_per_program': 2,
+            'repairs_per_explanation': branching_factor,
+            'beam_width': branching_factor,
+            'log': 'INFO',
+            'lexicase_selection': True,
+            'dataset': 'humaneval',
+            'model_name': 'codellama:34b-instruct'
+        }
+        for branching_factor in (2, 4, 16, 10)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+bf_humaneval_gpt35_lexicase_cpp = []
+for language in ["C++"]:
+    bf_humaneval_gpt35_lexicase_cpp += [
+        {
+            'problem': problem,
+            'language': language,
+            'branching_factor': branching_factor,
+            'max_programs': 100,
+            'drafts_per_prompt': branching_factor,
+            'explanations_per_program': 2,
+            'repairs_per_explanation': branching_factor,
+            'beam_width': branching_factor,
+            'log': 'INFO',
+            'lexicase_selection': True,
+            'dataset': 'humaneval',
+            'model_name': 'gpt-3.5-turbo'
+        }
+        for branching_factor in (2, 4, 16, 10)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
+
+
+bf_humaneval_codellama_lexicase_cpp = []
+for language in ["C++"]:
+    bf_humaneval_codellama_lexicase_cpp += [
+        {
+            'problem': problem,
+            'language': language,
+            'branching_factor': branching_factor,
+            'max_programs': 100,
+            'drafts_per_prompt': branching_factor,
+            'explanations_per_program': 2,
+            'repairs_per_explanation': branching_factor,
+            'beam_width': branching_factor,
+            'log': 'INFO',
+            'lexicase_selection': True,
+            'dataset': 'humaneval',
+            'model_name': 'codellama:34b-instruct'
+        }
+        for branching_factor in (2, 4, 16, 10)
+        for problem in humaneval_task_ids[language.lower()]
+    ]
 
 def update_experiments_list(
         input_file: Path | str,
@@ -134,8 +393,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    offset = 12000
-    experiments = bf_experiments_humaneval_lexicase_cpp
+    offset = 24000
+    experiments = bf_humaneval_codellama_lexicase_cpp
 
     if args.output_file is None:
         timestamp = datetime.now().strftime("%d_%m_%y__%H_%M_%S")
@@ -152,4 +411,3 @@ if __name__ == '__main__':
     )
 
     df.to_csv(output_file)
-

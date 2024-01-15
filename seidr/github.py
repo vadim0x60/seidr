@@ -2,21 +2,21 @@
 Handy tools for recording our generated programs to a git repository.
 May be nice to include this into programlib one day
 """
+import logging
+import os
+import pathlib
+import shutil
+import traceback
+from pathlib import Path
+from uuid import uuid4
 
 import git
 import gitdb
-from git import GitError, NoSuchPathError
+from git import GitError
 from git import Repo
-
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 from tenacity import wait_random_exponential
-from programlib import Program
 
-from pathlib import Path
-from uuid import uuid4
-import os
-import shutil
-import logging
 
 @retry(retry=retry_if_exception_type(git.exc.GitCommandError) |
              retry_if_exception_type(git.exc.BadName) |
@@ -28,7 +28,8 @@ def pullpush(repo):
     repo.remotes.origin.push()
 
 
-def upload_file(repo, filename, message=None):
+def upload_file(repo: Repo, filename: pathlib.Path | str, message: str = None):
+    """Commit and push a file to the repo and log the commit"""
     if not message:
         message = f'added {filename}'
 
@@ -43,14 +44,15 @@ def upload_file(repo, filename, message=None):
                  f'Commit message: {message}')
 
 
-def ensure_repo(remote, path, branch=None):
+def ensure_repo(remote: str, path: pathlib.Path | str, branch: str = None) -> Repo:
+    """Create a remote Git repository at `remote` corresponding to the local `path` and checkout to `branch`"""
     try:
         repo = Repo(path)
 
         if branch:
             repo.git.checkout(branch)
     except GitError as e:
-        logging.info(f'Git error in ensure repo {e}')
+        logging.info(f'Git error in ensure repo {e}. \n{traceback.print_stack()}')
         shutil.rmtree(path, ignore_errors=True)
         repo = Repo.clone_from(remote, path)
 
@@ -69,7 +71,8 @@ def ensure_repo(remote, path, branch=None):
     return repo
 
 
-def config_repo(dir, branch):
+def config_repo(dir: str, branch: str) -> Repo | None:
+    """Set up a repository corresponding to the local `dir` with branch name `branch`"""
     try:
         import os
         logging.info('config_repo')
@@ -82,6 +85,7 @@ def config_repo(dir, branch):
         logging.info(f'config_repo exception {e}')
         return None
 
+
 class FileLogger:
     """
     A careful archivist keeping track of your program's versions.
@@ -89,20 +93,16 @@ class FileLogger:
     """
 
     def __init__(self, branch, filename, commit_msg_template='{message}'):
-         os.makedirs('solutions', exist_ok=True)
-         self.filename = filename.replace("/", "_")
-         self.commit_msg_template = commit_msg_template
-         cache_dir = branch + '_' + str(uuid4())[:6]
-         self.dir = Path('solutions') / cache_dir
-         self.repo = config_repo(self.dir, branch=branch)
-         os.makedirs(self.dir, exist_ok=True)
+        os.makedirs('solutions', exist_ok=True)
+        self.filename = filename.replace("/", "_")
+        self.commit_msg_template = commit_msg_template
+        cache_dir = branch + '_' + str(uuid4())[:6]
+        self.dir = Path('solutions') / cache_dir
+        self.repo = config_repo(self.dir, branch=branch)
+        os.makedirs(self.dir, exist_ok=True)
 
-    # def current(self):
-    #     return Program(workdir=self.dir,
-    #                    name=self.filename,
-    #                    language=self.language)
-
-    def log(self, content, **vars):
+    def log(self, content: str, **vars: dict):
+        """Log content to file"""
         with open(self.dir / self.filename, 'w') as f:
             f.write(content)
         if self.repo:

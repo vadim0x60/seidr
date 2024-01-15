@@ -4,7 +4,7 @@ import os
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI, ChatOllama
 from collections.abc import Iterable
-from typing import Callable
+from typing import Callable, Optional
 import re
 from black import format_str, FileMode
 from pytest_codeblocks import extract_from_buffer
@@ -16,31 +16,15 @@ from seidr.prompt import create_chat_prompt_template
 token_error_message = 'tokens for the input and instruction but the maximum allowed is 3000. ' \
                       'Please reduce the input or instruction length.'
 
-def create_ollama_chain(
-        model_name: str = "codellama:7b-instruct",
-        temperature: float = 0.0,
-        mode: str = "generate"
-) -> LLMChain:
-    """Create an Ollama chain with a custom prompt"""
-
-    chat_model = ChatOllama(
-        model=model_name,
-        temperature=temperature
-    )
-
-    chat_prompt_template = create_chat_prompt_template(mode)
-
-    return LLMChain(llm=chat_model, prompt=chat_prompt_template)
-
 
 def extract_codes(
         message_content: str,
         language: Language | str
 ) -> str:
     """Extract code out of a message and (if Python) format it with black"""
-
     try:
         code_blocks = list(extract_from_buffer(StringIO(message_content)))
+        code_blocks = [code for code in code_blocks if not bool(code)]
     except RuntimeError as e:
         code_blocks = []
 
@@ -55,15 +39,21 @@ def extract_codes(
 
 
 def run_black(code: str) -> str:
+    """Format (Python) code with Black"""
     try:
         return format_str(code, mode=FileMode())
     except Exception as e:
         logging.info(e)
         return code
 
-def create_chain(temperature: float = 0.,
-                 mode: str = "generate",
-                 model_name: str = "codellama:7b-instruct"):
+
+def create_chain(
+        temperature: float = 0.,
+        mode: str = "generate",
+        model_name: str = "codellama:7b-instruct",
+        base_url: Optional[str] = None
+) -> LLMChain:
+    """Set up a LangChain LLMChain"""
     chat_prompt_template = create_chat_prompt_template(mode)
     if "gpt" in model_name.lower():
         chat_model = ChatOpenAI(
@@ -74,6 +64,7 @@ def create_chain(temperature: float = 0.,
         )
     elif "llama" in model_name.lower():
         chat_model = ChatOllama(
+            base_url=base_url,
             model=model_name,
             temperature=temperature
         )
@@ -83,36 +74,44 @@ def create_chain(temperature: float = 0.,
 
 def query_llm(
         language: Language | str,
+        base_url: str,
         temperature: float = 0.,
         mode: str = "generate",
         model_name: str = "codellama:7b-instruct",
         n: int = 1,
         **kwargs
 ) -> list[str]:
-    logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}")
-    chain = create_chain(temperature=temperature, mode=mode, model_name=model_name)
+    """Generate `n` outputs with an LLM"""
+    logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}\n")
+    chain = create_chain(temperature=temperature, mode=mode, model_name=model_name, base_url=base_url)
     kwargs['language'] = language
     result = chain.generate([kwargs for _ in range(n)])
 
     # Assistants are trained to respond with one message.
     # it is theoretically possible to get more than one message, but it is very unlikely.
     assert all(len(r) == 1 for r in result.generations), "The models are expected to respond with one message"
-    result = [r[0].message.content for r in result.generations]
+    result = [r[0].message.content for r in result.generations if r[0].message.content]
 
-    result_logging = "\n\n".join(result)
-    logging.info(f"LLM output: {result_logging}")
+    if mode == "repair":
+        logging.info(f"Generating repair candidates for bug summary: \n{kwargs['bug_summary']}\n")
+    elif mode == "explain_bugs":
+        logging.info(f"Generating explanations for code: \n{kwargs['code']}\n")
 
     if mode != "explain_bugs":
-        result = [c for r in result 
+        result = [c for r in result
                   for c in extract_codes(message_content=r, language=language)]
         result_logging = "\n\n".join(result)
-        logging.info(f"LLM output after code extraction: \n{result_logging}")
+        logging.info(f"LLM output after code extraction: \n{result_logging}\n")
+    else:
+        result_logging = "\n\n".join(result)
+        logging.info(f"LLM output: \n{result_logging}\n")
 
     return result
 
 
 def explore_llm(
         language: Language | str,
+        base_url: str,
         log_llm_call: Callable = lambda **kwargs: None,
         mode: str = "generate",
         model_name: str = "codellama:7b-instruct",
@@ -121,6 +120,7 @@ def explore_llm(
         batch_size: int = 1,
         **kwargs
 ) -> Iterable[str]:
+    """Generate LLM outputs and increase temperature for every new batch"""
     while t <= 1:
         log_llm_call(**locals())
         yield from query_llm(
@@ -129,13 +129,16 @@ def explore_llm(
             mode=mode,
             model_name=model_name,
             n=batch_size,
+            base_url=base_url,
             **kwargs
         )
 
         t += delta_t
 
+
 if __name__ == '__main__':
     import itertools
+
     logging.basicConfig(level=logging.INFO)
 
     fizz_buzz = """
@@ -147,9 +150,9 @@ if __name__ == '__main__':
     """
 
     for model_name in ['codellama:34b-instruct', 'gpt-3.5-turbo']:
-        for code in itertools.islice(explore_llm(language='Python', 
-                                                task_name='fizz-buzz', 
-                                                task_description=fizz_buzz, 
-                                                start_code='', 
-                                                model_name=model_name), 10):
+        for code in itertools.islice(explore_llm(language='Python',
+                                                 task_name='fizz-buzz',
+                                                 task_description=fizz_buzz,
+                                                 start_code='',
+                                                 model_name=model_name), 10):
             print(code)

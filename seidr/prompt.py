@@ -1,14 +1,14 @@
-import logging
+from string import Template
+from typing import List, Tuple
 
 from langchain.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
-from langchain.chains import LLMChain
-from pathlib import Path
-from string import Template
-
 from programlib import language_
+
 from seidr import get_template
 
-def initial_prompt(task_description, examples):
+
+def initial_prompt(task_description: str, examples: Tuple[List[str], List[str]]):
+    """Create a docstring for the draft program (to be used in the generate mode)"""
     prompt = task_description
     prompt += '\nFor example,'
     for sample_inputs, sample_outputs in examples:
@@ -22,53 +22,8 @@ def initial_prompt(task_description, examples):
     return prompt
 
 
-def write_debug_prompt(mistake, debug_prompt_text, task_description=None):
-    logging.info('Updating debug prompt')
-
-def llm_assisted_bug_summary(debug_prompt_text, task_description, input, expected_output, actual_output):
-    return explore_llm(
-        language=language,  # TODO get it from somewhere
-        tempearture=t,  # TODO what to do with delta_t
-        mode="explain_bugs",
-        model_name="codellama:7b-instruct",  # TODO get it from somewhere
-        task_name=task_name,  # TODO get it from somewhere
-        code=code, # TODO get it from somewhere
-        input=input,
-        output=expected_output,
-        wrong_output=actual_output,
-        task_description=task_description
-    )
-
-
-def write_debug_prompt(mistake, debug_prompt_text, task_description=None):
-    logging.info('Formation of debug prompt')
-    output_lines = '\n'.join([s.decode("utf-8") if type(s) == bytes else s for s in mistake.output_lines])
-
-    prompt = ""
-    if mistake.correctness < 1:
-        if mistake.exit_status:
-            error_lines = output_lines
-            prompt = f'Fix {error_lines}' # TODO: return bug summary instead of a prompt
-
-        else:
-            i = '\\n'.join(mistake.input_lines)
-            o = '\\n'.join(mistake.expected_output_lines)
-            if 'GPT ---' in debug_prompt_text: # TODO update to always use it
-                
-                prompt = gpt_assisted_prompt(
-                    debug_prompt_text, task_description, mistake.input_lines,
-                    mistake.expected_output_lines, output_lines)
-            else:
-                prompt = debug_prompt_text.format(i=i, o=o)
-    else:
-        logging.info('\n\nrun.correctness = 1 for all runs, mistake lines are empty\n\n')
-        prompt = dont_change
-
-    logging.info(f'The prompt is: \n{prompt}')
-    return prompt
-
-
-def start_coding(prompt, language='C++'):
+def start_coding(prompt: str, language: str = 'C++') -> str:
+    """Fill in the template for the draft program with the first lines"""
     language = language_(language)
     template = language.source.format(name='template')
     template = get_template(template)

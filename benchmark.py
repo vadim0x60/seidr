@@ -2,18 +2,19 @@ import logging
 import os
 import random
 import traceback
+from pathlib import Path
+from typing import Optional, List, Tuple
+
 import pandas as pd
 import psb2
-import wandb
-
 from fire import Fire
 from more_itertools import chunked
-from programlib import Program
+from programlib import Program, Language
 from programlib import language_
-from pathlib import Path
 
+import wandb
 from seidr import SEIDR, get_template
-from seidr.eval import IOMatch, UnitTest
+from seidr.eval import IOMatch
 from seidr.github import FileLogger
 from seidr.prompt import start_coding, initial_prompt
 
@@ -32,7 +33,8 @@ debug_templates = {int(ix.strip()): prompt.strip()
                    for ix, prompt in debug_templates}
 
 
-def title2kebabcase(title):
+def title2kebabcase(title: str) -> str:
+    """Replace spaces with hyphens"""
     return '-'.join(word.lower() for word in title.split(' '))
 
 
@@ -41,7 +43,12 @@ pushgp_success_rates = pd.read_csv('psb2-meta/results.tsv',
 pushgp_success_rates = pushgp_success_rates['Succ.'].rename(title2kebabcase)
 
 
-def is_already_solved(solutions_logger, test_data, language):
+def is_already_solved(
+        solutions_logger: FileLogger,
+        test_data: Tuple[List[str] | str, List[str] | str],
+        language: Language) -> Program | bool:
+    """Checks if the currently logged solution passes all tests in `test_data`.
+    Returns False if a Program class instance cannot be created"""
     try:
         return Program(workdir=solutions_logger.dir,
                        name=solutions_logger.filename,
@@ -63,7 +70,8 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   prompt_examples: int = 5,
                   log: str = 'ERROR',
                   model_name: str = 'gpt-3.5-turbo',
-                  lexicase_selection: bool = True,
+                  lexicase_selection: bool = False,
+                  ollama_url: Optional[str] = "http://localhost:11434",
                   **kwargs):
     """Generate and repair programs in PSB2
 
@@ -73,16 +81,17 @@ def run_benchmark(problem: str = 'fizz-buzz',
         name of a problem in PSB 2
     language : str
         programming language
-    tree_arity : int
-        number of leaves to create at level n+1
-        from each current leaf at level n in the beam
     max_programs : int
-        maximum number of elements in the resulting beam
+        maximum number of elements in the resulting beam search tree
+    drafts_per_prompt : int
+        number of drafted problem solutions to be generated from a prompt
+    explanations_per_program : int
+        number of natural language explanations to give for one program (that does not pass all validation tests)
+    repairs_per_explanation : int
+        number of debugging attempts for each error explanation
     beam_width : int
         number of elements with top score that will be kept in the beam
         out of all leaves at the newly created level n+1
-    debug_prompt_id : int
-        prompt template id from `./debug-prompt-templates/prompts.txt
     seed : int
         used to fix seed so that the same I/O pairs are fetched from PSB2
     valid_examples : int
@@ -96,15 +105,14 @@ def run_benchmark(problem: str = 'fizz-buzz',
     prompt_examples : int
         number of I/O pairs taken from n_train_pairs to generate initial prompt
         for Codex completion model
-    batch_size : int
-        number of Codex outputs for the same prompt that will be generated at once
-        for one parent during the beam search
-    mode : str
-        'execute' or 'debug'
+    log : str
+        logging mode, mostly used INFO, ERROR or DEBUG in our experiments
     model_name : str
         name of the OpenAI or Ollama model to use
     lexicase_selection : bool
         whether to use lexicase selection or just sort by score
+    ollama_url : str
+        link to the ollama cluster, default is localhost
     """
     # Setup logging
     Path('logs').mkdir(exist_ok=True)
@@ -115,13 +123,21 @@ def run_benchmark(problem: str = 'fizz-buzz',
 
     config = {
         'slurm_job_id': os.environ.get('SLURM_JOB_ID'),
+        'slurm_task_pid': os.environ.get('SLURM_TASK_PID'),
+        'slurm_array_task_id': os.environ.get('SLURM_ARRAY_TASK_ID'),
+        'slurm_array_job_id': os.environ.get('SLURM_ARRAY_JOB_ID'),
         'task_id': os.environ.get('TASK_ID'),
         **kwargs,
         **locals()
     }
 
     del config['kwargs']
-    run = wandb.init(entity=os.environ.get('WANDB_ENTITY'), project='codex-for-psb', config=config)
+    model_name_tag = model_name.replace(':', '_')
+    run = wandb.init(
+        entity=os.environ.get('WANDB_ENTITY'),
+        project=f'seidr-telo-psb2-{model_name_tag}',
+        dir=os.environ.get('WANDB_DIR'),
+        config=config)
     logger.info(f'Run config {run.config}, W&B: {run.url}')
 
     language = language_(language)
@@ -131,7 +147,6 @@ def run_benchmark(problem: str = 'fizz-buzz',
         wandb_url=run.url)
 
     lexicase_tag = '_lexicase' if lexicase_selection else ""
-    model_name_tag = model_name.replace(':', '_')
     attempts_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_dev'
     solutions_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}'
 
@@ -160,8 +175,9 @@ def run_benchmark(problem: str = 'fizz-buzz',
     call_count = 0
 
     def log_llm_call(**kwargs):
+        """Update and log the number of LLM calls"""
         nonlocal call_count
-        wandb.log({'gpt_calls': call_count})
+        wandb.log({'llm_calls': call_count})
         call_count += 1
 
     critics = [
@@ -183,11 +199,12 @@ def run_benchmark(problem: str = 'fizz-buzz',
         explanations_per_program=explanations_per_program,
         repairs_per_explanation=repairs_per_explanation,
         lexicase_selection=lexicase_selection,
-        log_metrics=wandb.log,
+        log_metrics=run.log,
         log_attempt=attempts_logger,
         log_solution=solutions_logger,
         log_llm_call=log_llm_call,
         max_programs=max_programs,
+        ollama_url=ollama_url
     )
 
     solution = seidr.develop(start_code=start_code)
@@ -203,9 +220,12 @@ def run_benchmark(problem: str = 'fizz-buzz',
     avg_score = sum(e.score() for e in test_evals) / len(test_evals)
     test_pass_rate = sum(e.check() for e in test_evals) / len(test_evals)
 
-    wandb.log({'test_avg_score': avg_score,
+    logging.info(f'\nTest pass rate on test: {test_pass_rate}\nTest avg score on test: {avg_score}')
+
+    run.log({'test_avg_score': avg_score,
                'test_pass_rate': test_pass_rate})
-    run.finish()
+    # run.finish()
+    wandb.finish()
 
 
 if __name__ == '__main__':
