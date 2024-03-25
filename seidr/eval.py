@@ -10,7 +10,7 @@ class Evaluation(ABC):
     Produces a binary pass/fail result, a float score, and a text report
     """
 
-    def __init__(self, SUT: Program, passing_score: float = 1.):
+    def __init__(self, SUT, passing_score: float = 1.):
         """
         SUT: System Under Test
         passing_score: float score required to pass the evaluation
@@ -97,3 +97,51 @@ class UnitTest(Evaluation):
         else:
             self.output = "\n".join(self.output) if type(self.output) == list else self.output
             return self.output
+
+class Gymnasium(Evaluation):
+    def __init__(self, env, code, language, passing_score):
+        agent = Program(code, language=language).spawn()
+        super().__init__(agent, passing_score)
+
+        self.env = env
+        self.tot_reward = 0
+        self.tot_txt = ''
+        self.done = False
+
+    def play(self):
+        if self.done:
+            return
+
+        try:
+            observation = self.env.reset()
+            terminated = False
+            truncated = False
+
+            while not (terminated or truncated):
+                if 'ascii' in self.env.metadata.get('render.modes', []):
+                    ascii_render = self.env.render(mode='ascii')
+                    self.tot_txt += ascii_render
+
+                action, _ = self.SUT.predict(observation, deterministic=True)
+
+                observation, reward, terminated, truncated, info = self.env.step(action)
+                self.tot_reward += reward
+                self.tot_txt += info.get('memos', '')
+        except RuntimeError as e:
+            self.tot_reward = -1000
+            self.tot_txt = str(e)
+
+        self.done = True
+
+    def score(self):
+        self.play()
+        return self.tot_reward
+
+    def check(self):
+        self.play()
+        return self.tot_reward > 0
+    
+    def pen_report(self):
+        self.play()
+        self.tot_txt += f'\nFinal reward: {self.tot_reward}'
+        return self.tot_txt
