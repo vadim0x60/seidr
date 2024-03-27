@@ -113,7 +113,7 @@ class Gymnasium(Evaluation):
             return
 
         try:
-            observation = self.env.reset()
+            observation, info = self.env.reset()
             terminated = False
             truncated = False
 
