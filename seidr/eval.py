@@ -114,6 +114,7 @@ class Gymnasium(Evaluation):
 
         try:
             observation, info = self.env.reset()
+            self.tot_txt += info.get('memos', '')
             terminated = False
             truncated = False
 
