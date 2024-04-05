@@ -108,6 +108,9 @@ class Gymnasium(Evaluation):
         self.tot_txt = ''
         self.done = False
 
+    def __del__(self):
+        self.SUT.close()
+
     def play(self):
         if self.done:
             return
