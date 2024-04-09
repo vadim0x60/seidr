@@ -141,10 +141,6 @@ class Gymnasium(Evaluation):
         self.play()
         return self.tot_reward
 
-    def check(self):
-        self.play()
-        return self.tot_reward > 0
-    
     def pen_report(self):
         self.play()
         self.tot_txt += f'\nFinal reward: {self.tot_reward}'
