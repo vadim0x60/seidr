@@ -24,7 +24,6 @@ def extract_codes(
     """Extract code out of a message and (if Python) format it with black"""
     try:
         code_blocks = list(extract_from_buffer(StringIO(message_content)))
-        code_blocks = [code for code in code_blocks if not bool(code)]
     except RuntimeError as e:
         code_blocks = []
 
