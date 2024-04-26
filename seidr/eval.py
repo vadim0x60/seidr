@@ -133,7 +133,7 @@ class Gymnasium(Evaluation):
                 self.tot_txt += info.get('memos', '')
         except RuntimeError as e:
             self.tot_reward = -1000
-            self.tot_txt = str(e)
+            self.tot_txt += f'FATAL {e}'
 
         self.done = True
 
