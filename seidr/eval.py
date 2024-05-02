@@ -100,7 +100,7 @@ class UnitTest(Evaluation):
 
 class Gymnasium(Evaluation):
     def __init__(self, env, code, language, passing_score):
-        action_mode = env.action_space.__name__.lower()
+        action_mode = type(env.action_space).__name__.lower()
         agent = Program(code, language=language).spawn(action_mode=action_mode)
         super().__init__(agent, passing_score)
 
