@@ -117,6 +117,9 @@ class Gymnasium(Evaluation):
             return
 
         try:
+            self.tot_reward = 0
+            self.tot_txt = ''
+
             observation, info = self.env.reset()
             self.tot_txt += info.get('memos', '')
             terminated = False
