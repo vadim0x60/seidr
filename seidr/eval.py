@@ -99,7 +99,7 @@ class UnitTest(Evaluation):
             return self.output
 
 class Gymnasium(Evaluation):
-    def __init__(self, env, code, language, passing_score):
+    def __init__(self, env, code, language, passing_score, error_reward=1000):
         action_mode = type(env.action_space).__name__.lower()
         agent = Program(code, language=language).spawn(action_mode=action_mode)
         super().__init__(agent, passing_score)
@@ -108,6 +108,7 @@ class Gymnasium(Evaluation):
         self.tot_reward = 0
         self.tot_txt = ''
         self.done = False
+        self.error_penalty = error_reward
 
     def __del__(self):
         self.SUT.close()
@@ -136,7 +137,7 @@ class Gymnasium(Evaluation):
                 self.tot_reward += reward
                 self.tot_txt += info.get('memos', '')
         except RuntimeError as e:
-            self.tot_reward = -1000
+            self.tot_reward = - error_reward
             self.tot_txt += f'FATAL {e}'
 
         self.done = True
