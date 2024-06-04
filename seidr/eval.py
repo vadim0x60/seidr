@@ -100,18 +100,15 @@ class UnitTest(Evaluation):
 
 class Gymnasium(Evaluation):
     def __init__(self, env, code, language, passing_score, error_reward=-1000):
-        action_mode = type(env.action_space).__name__.lower()
-        agent = Program(code, language=language).spawn(action_mode=action_mode)
-        super().__init__(agent, passing_score)
+        self.action_mode = type(env.action_space).__name__.lower()
+        program = Program(code, language=language)
+        super().__init__(program, passing_score)
 
         self.env = env
         self.tot_reward = 0
         self.tot_txt = ''
         self.done = False
         self.error_reward = error_reward
-
-    def __del__(self):
-        self.SUT.close()
 
     def play(self):
         if self.done:
@@ -125,13 +122,14 @@ class Gymnasium(Evaluation):
             self.tot_txt += info.get('memos', '')
             terminated = False
             truncated = False
+            agent = self.SUT.spawn(action_mode=self.action_mode)
 
             while not (terminated or truncated):
                 if 'ascii' in self.env.metadata.get('render.modes', []):
                     ascii_render = self.env.render(mode='ascii')
                     self.tot_txt += ascii_render
 
-                action, _ = self.SUT.predict(observation, deterministic=True)
+                action, _ = agent.predict(observation, deterministic=True)
 
                 observation, reward, terminated, truncated, info = self.env.step(action)
                 self.tot_reward += reward
@@ -139,6 +137,8 @@ class Gymnasium(Evaluation):
         except RuntimeError as e:
             self.tot_reward = self.error_reward
             self.tot_txt += f'FATAL {e}'
+        finally:
+            agent.close()
 
         self.done = True
 
