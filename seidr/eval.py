@@ -114,16 +114,16 @@ class Gymnasium(Evaluation):
         if self.done:
             return
 
-        try:
-            self.tot_reward = 0
-            self.tot_txt = ''
+        self.tot_reward = 0
+        self.tot_txt = ''
+        agent = self.SUT.spawn(action_mode=self.action_mode)
 
+        try:
             observation, info = self.env.reset()
             self.tot_txt += info.get('memos', '')
             terminated = False
             truncated = False
-            agent = self.SUT.spawn(action_mode=self.action_mode)
-
+            
             while not (terminated or truncated):
                 if 'ascii' in self.env.metadata.get('render.modes', []):
                     ascii_render = self.env.render(mode='ascii')
