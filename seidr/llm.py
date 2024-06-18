@@ -55,7 +55,7 @@ def create_chain(
 ) -> LLMChain:
     """Set up a LangChain LLMChain"""
     chat_prompt_template = create_chat_prompt_template(mode)
-    if "gpt" in model_name.lower():
+    if "gpt" or "deepseek" in model_name.lower():
         chat_model = ChatOpenAI(
             model=model_name,
             temperature=temperature,
