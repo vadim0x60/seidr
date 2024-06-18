@@ -59,6 +59,7 @@ def create_chain(
         chat_model = ChatOpenAI(
             model=model_name,
             temperature=temperature,
+            openai_api_base=os.getenv("OPENAI_API_BASE"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_organization=os.getenv("OPENAI_ORG")
         )
