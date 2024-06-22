@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "seidr"
-version = "3.2.7"
+version = "3.2.8"
 description = "Synthesize Execute Instruct Debug Rank"
 authors = ["Vadim Liventsev <v.liventsev@tue.nl>", "Anastasia Grishina <anastasiia@simula.no>"]
 license = "MIT"
