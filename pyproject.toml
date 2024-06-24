@@ -27,6 +27,7 @@ jupyterlab = "^4.0.7"
 black = "^23.10.1"
 langchain = "^0.0.326"
 pytest-codeblocks = "^0.17.0"
+ollama = "^0.2.1"
 
 [build-system]
 requires = ["poetry-core"]

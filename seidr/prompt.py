@@ -81,3 +81,23 @@ def create_chat_prompt_template(
     return chat_prompt_template
 
 
+def ollama_messages(
+        mode: str = "generate",
+        **kwargs
+) -> List[dict[str, str]]:
+    """Returns messages formatted for interaction with ollama"""
+    try:
+        prompt = [
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT.format(**kwargs)
+            },
+            {
+                "role": "user",
+                "content": HUMAN_PROMPTS[mode].format(**kwargs)
+            }
+        ]
+    except KeyError:
+        raise ModeNameError(f"Unsupported mode name '{mode}'. Use one of {HUMAN_PROMPTS.keys()}")
+
+    return prompt

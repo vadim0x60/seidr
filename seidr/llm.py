@@ -1,6 +1,7 @@
 import logging
 import os
 
+import ollama
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI, ChatOllama
 from collections.abc import Iterable
@@ -11,7 +12,7 @@ from pytest_codeblocks import extract_from_buffer
 from io import StringIO
 
 from programlib import Language, language_
-from seidr.prompt import create_chat_prompt_template
+from seidr.prompt import create_chat_prompt_template, ollama_messages
 
 token_error_message = 'tokens for the input and instruction but the maximum allowed is 3000. ' \
                       'Please reduce the input or instruction length.'
@@ -24,7 +25,8 @@ def extract_codes(
     """Extract code out of a message and (if Python) format it with black"""
     try:
         code_blocks = list(extract_from_buffer(StringIO(message_content)))
-        code_blocks = [code for code in code_blocks if not bool(code)]
+        # code_blocks = [code for code in code_blocks if not bool(code)]
+        code_blocks = [code for code in code_blocks if bool(code)]
     except RuntimeError as e:
         code_blocks = []
 
@@ -83,14 +85,22 @@ def query_llm(
 ) -> list[str]:
     """Generate `n` outputs with an LLM"""
     logging.info(f"Query LLM ({model_name}) in mode {mode} with temperature {temperature}\n")
-    chain = create_chain(temperature=temperature, mode=mode, model_name=model_name, base_url=base_url)
-    kwargs['language'] = language
-    result = chain.generate([kwargs for _ in range(n)])
 
-    # Assistants are trained to respond with one message.
-    # it is theoretically possible to get more than one message, but it is very unlikely.
-    assert all(len(r) == 1 for r in result.generations), "The models are expected to respond with one message"
-    result = [r[0].message.content for r in result.generations if r[0].message.content]
+    kwargs['language'] = str(language)
+
+    if "gpt" in model_name.lower():
+        chain = create_chain(temperature=temperature, mode=mode, model_name=model_name, base_url=base_url)
+        result = chain.generate([kwargs for _ in range(n)])
+
+        # Assistants are trained to respond with one message.
+        # it is theoretically possible to get more than one message, but it is very unlikely.
+        assert all(len(r) == 1 for r in result.generations), "The models are expected to respond with one message"
+        result = [r[0].message.content for r in result.generations if r[0].message.content]
+
+    elif "llama" in model_name.lower():
+        messages = ollama_messages(mode, **kwargs)
+        responses = [ollama.chat(model=model_name, messages=messages, options={"temperature": temperature}) for _ in range(n)]
+        result = [r['message']['content'] for r in responses]
 
     if mode == "repair":
         logging.info(f"Generating repair candidates for bug summary: \n{kwargs['bug_summary']}\n")
