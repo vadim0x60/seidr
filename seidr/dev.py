@@ -4,7 +4,7 @@ from programlib import Program, Language
 from typing import Callable, Optional, Iterable, Tuple, List, Generator
 import random
 
-from seidr.llm import explore_llm
+from seidr.llm import explore_llm, default_batch_size
 from seidr.eval import Evaluation
 
 
@@ -143,11 +143,8 @@ class SEIDR:
         self.ollama_url = ollama_url
 
         if not batch_size:
-            if 'gpt' in model_name:
-                self.batch_size = 10
-            else:
-                # Because Ollama doesn't support batch inference
-                self.batch_size = 1
+            batch_size = default_batch_size(model_name)
+        self.batch_size = batch_size          
 
     def draft(self, start_code: str = '') -> Iterable[str]:
         """Create a draft solution with the "generate" prompt template

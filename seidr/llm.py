@@ -3,6 +3,7 @@ import os
 
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI, ChatOllama
+from langchain_anthropic import ChatAnthropic
 from collections.abc import Iterable
 from typing import Callable, Optional
 import re
@@ -46,6 +47,20 @@ def run_black(code: str) -> str:
         logging.info(e)
         return code
 
+def which_api(model_name):
+    model_name = model_name.lower()
+    if "gpt" in model_name or "deepseek" in model_name:
+        return ChatOpenAI
+    elif "claude" in model_name:
+        return ChatAnthropic
+    else:
+        return ChatOllama
+    
+def default_batch_size(model_name):
+    if which_api(model_name) == ChatOllama:
+        return 1
+    else:
+        return 10
 
 def create_chain(
         temperature: float = 0.,
@@ -55,7 +70,9 @@ def create_chain(
 ) -> LLMChain:
     """Set up a LangChain LLMChain"""
     chat_prompt_template = create_chat_prompt_template(mode)
-    if "gpt" or "deepseek" in model_name.lower():
+    api = which_api(model_name)
+
+    if api == ChatOpenAI:
         chat_model = ChatOpenAI(
             model=model_name,
             temperature=temperature,
@@ -63,7 +80,13 @@ def create_chain(
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_organization=os.getenv("OPENAI_ORG")
         )
-    elif "llama" in model_name.lower():
+    elif api == ChatAnthropic:
+        chat_model = ChatAnthropic(
+            model_name=model_name,
+            temperature=temperature,
+            anthropic_api_key=os.getenv('ANTHROPIC_API_KEY')
+        )
+    elif api == ChatOllama:
         chat_model = ChatOllama(
             base_url=base_url,
             model=model_name,
