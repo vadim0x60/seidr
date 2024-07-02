@@ -85,7 +85,7 @@ def create_chain(
             model_name=model_name,
             temperature=temperature,
             anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
-            max_retries=256
+            max_retries=4096
         )
     elif api == ChatOllama:
         chat_model = ChatOllama(
