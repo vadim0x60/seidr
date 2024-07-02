@@ -4,6 +4,7 @@ import os
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI, ChatOllama
 from langchain_anthropic import ChatAnthropic
+import anthropic._constants
 from collections.abc import Iterable
 from typing import Callable, Optional
 import re
@@ -85,7 +86,7 @@ def create_chain(
             model_name=model_name,
             temperature=temperature,
             anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
-            max_retries=4096
+            max_retries=int(25 * 60 * 60 / anthropic._constants.MAX_RETRY_DELAY)
         )
     elif api == ChatOllama:
         chat_model = ChatOllama(
