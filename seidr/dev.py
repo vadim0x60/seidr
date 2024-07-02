@@ -143,11 +143,9 @@ class SEIDR:
         self.ollama_url = ollama_url
 
         if not batch_size:
-            if 'gpt' in model_name:
-                self.batch_size = 10
-            else:
-                # Because Ollama doesn't support batch inference
-                self.batch_size = 1
+            self.batch_size = 10
+        else:
+            self.batch_size = batch_size
 
     def draft(self, start_code: str = '') -> Iterable[str]:
         """Create a draft solution with the "generate" prompt template

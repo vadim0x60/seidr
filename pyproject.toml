@@ -13,21 +13,23 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
-psb2 = ">=1.1.1"
-openai = "<1.0.0"
-more-itertools = ">=8.0.0,<9.0.0"
-programlib = ">=9.0.2,<10.0.0"
-wandb = "<1.0.0"
+psb2 = "^1.1.1"
+openai = "^1.0.0"
+more-itertools = "^10.0.0"
+programlib = "12.0.5"
+wandb = ">=0.15.0"
 gitpython = ">=3.0.0,<4.0.0"
 tenacity = ">=8.0.0,<9.0.0"
-pandas = ">=1.0.0,<2.0.0"
+pandas = ">=2.0.0"
 fire = "<1.0.0"
-jsonlines = "^4.0.0"
-jupyterlab = "^4.0.7"
-black = "^23.10.1"
-langchain = "^0.0.326"
+jsonlines = ">=4.0.0"
+jupyterlab = ">=4.0.7"
+black = "^24.0.0"
+langchain = "^0.2.0"
 pytest-codeblocks = "^0.17.0"
 ollama = "^0.2.1"
+langchain-community = "^0.2.6"
+langchain-core = "^0.2.10"
 
 [build-system]
 requires = ["poetry-core"]

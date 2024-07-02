@@ -72,6 +72,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
                   model_name: str = 'gpt-3.5-turbo',
                   lexicase_selection: bool = False,
                   ollama_url: Optional[str] = "http://localhost:11434",
+                  experiment_id: int = 0,
                   **kwargs):
     """Generate and repair programs in PSB2
 
@@ -135,7 +136,7 @@ def run_benchmark(problem: str = 'fizz-buzz',
     model_name_tag = model_name.replace(':', '_')
     run = wandb.init(
         entity=os.environ.get('WANDB_ENTITY'),
-        project=f'seidr-telo-psb2-{model_name_tag}',
+        project=f'seidr-telo-psb2-{model_name_tag}-run{experiment_id}',
         dir=os.environ.get('WANDB_DIR'),
         config=config)
     logger.info(f'Run config {run.config}, W&B: {run.url}')
@@ -147,8 +148,8 @@ def run_benchmark(problem: str = 'fizz-buzz',
         wandb_url=run.url)
 
     lexicase_tag = '_lexicase' if lexicase_selection else ""
-    attempts_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_dev'
-    solutions_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}'
+    attempts_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_run{experiment_id}_dev'
+    solutions_branch = f'psb_{model_name_tag}_{drafts_per_prompt}x{explanations_per_program}x{repairs_per_explanation}{lexicase_tag}_run{experiment_id}'
 
     attempts_logger = FileLogger(branch=attempts_branch,
                                  filename=language.source.format(name=problem),
