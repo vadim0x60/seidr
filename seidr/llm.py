@@ -81,14 +81,10 @@ def create_chain(
             openai_organization=os.getenv("OPENAI_ORG")
         )
     elif api == ChatAnthropic:
-        import anthropic._constants
-        anthropic._constants.MAX_RETRY_DELAY = 24 * 60 * 60
-
         chat_model = ChatAnthropic(
             model_name=model_name,
             temperature=temperature,
-            anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
-            max_retries=20
+            anthropic_api_key=os.getenv('ANTHROPIC_API_KEY')
         )
     elif api == ChatOllama:
         chat_model = ChatOllama(
