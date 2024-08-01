@@ -229,6 +229,8 @@ def run_benchmark(problem: str = 'fizz-buzz',
     wandb.finish()
 
 
+
+
 if __name__ == '__main__':
     try:
         Fire(run_benchmark)

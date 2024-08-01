@@ -1,7 +1,9 @@
 import logging
 import os
 
-from langchain_community.chat_models import ChatOpenAI, ChatOllama
+from langchain_openai import ChatOpenAI
+
+from langchain_community.chat_models import ChatOllama
 from collections.abc import Iterable
 from typing import Callable, Optional
 from black import format_str, FileMode
@@ -89,14 +91,7 @@ def query_llm(
     chain = create_chain(temperature=temperature, mode=mode, model_name=model_name, base_url=base_url)
     result = chain.batch([kwargs for _ in range(n)])
 
-    # Assistants are trained to respond with one message.
-    # it is theoretically possible to get more than one message, but it is very unlikely.
     result = [r.content for r in result]
-
-    # elif "llama" in model_name.lower():
-    #     messages = ollama_messages(mode, **kwargs)
-    #     responses = [ollama.chat(model=model_name, messages=messages, options={"temperature": temperature}) for _ in range(n)]
-    #     result = [r['message']['content'] for r in responses]
 
     if mode == "repair":
         logging.info(f"Generating repair candidates for bug summary: \n{kwargs['bug_summary']}\n")
