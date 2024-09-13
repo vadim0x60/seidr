@@ -44,12 +44,12 @@ set to your OpenAI API access token.
 
 #### Set up Ollama
 
-Run [Ollama](https://ollama.ai/) with CodeLlama or [another model](https://ollama.ai/library) locally 
+Run [Ollama](https://ollama.ai/) with Llama 3-8B or [another model](https://ollama.ai/library) locally 
 or on a server. 
 In the latter case, start the Ollama server with the following commands and note the `URL:PORT` pair:
 ```
 OLLAMA_HOST=URL:PORT ollama serve &
-OLLAMA_HOST=URL:PORT ollama pull codellama:34b-instruct &
+OLLAMA_HOST=URL:PORT ollama pull llama3 &
 ```
 
 Example `.config` file layout:
@@ -75,14 +75,16 @@ export WANDB_DIR=...
 
 If you're using [Slurm](https://slurm.schedmd.com/), write a `run.sh` file with `python benchmark.py` 
 and run it with `sbatch run.sh --array=1-500`.
-If not, run `TASK_ID=n python benchmark.py` to re-run one of our experiments exactly, or set the parameters yourself:
+If not, run `TASK_ID=n python benchmark.py` to re-run one of our experiments exactly, 
+or set the parameters yourself as below.
 
 For example, for basement problem in PSB2, run SEIDR without lexicase selection as follows:
 ```
 python3 benchmark.py \
-    --task_id 202 \
-    --problem basement \
-    --language C++ \
+    --task_id 0 \
+    --problem bowling \
+    --language Python \
+    --branching_factor 2 \
     --max_programs 100 \
     --drafts_per_prompt 2 \
     --explanations_per_program 2 \
@@ -90,26 +92,31 @@ python3 benchmark.py \
     --beam_width 2 \
     --log INFO \
     --lexicase_selection False \
-    --dataset psb2 \
-    --model_name gpt-3.5-turbo
+    --dataset humaneval \
+    --model_name gpt-3.5-turbo \
+    --valid_examples 50 \
+    --experiment_id 0
 ```
 
-To run an example with SEIDR with CodeLlama served by Ollama at `URL:PORT`, run the following:
+To run an example with SEIDR with Llama 3 served by Ollama at `URL:PORT` on HumanEval with lexicase, run the following:
 ```
-python3 benchmark.py \
-    --task_id 2202 \
-    --problem basement \
-    --language C++ \
+python3 benchmark_humaneval.py \
+    --task_id 0 \
+    --problem Python/0 \
+    --language Python \
+    --branching_factor 2 \
     --max_programs 100 \
     --drafts_per_prompt 2 \
     --explanations_per_program 2 \
     --repairs_per_explanation 2 \
     --beam_width 2 \
     --log INFO \
-    --lexicase_selection False \
-    --dataset psb2 \
-    --model_name codellama:34b-instruct \
+    --lexicase_selection True \
+    --dataset humaneval \
+    --model_name llama3 \
+    --experiment_id 0 \
     --ollama_url "http://URL:PORT"
+
 ```
 
-Example Slurm scripts are stored in `example_scripts/` and tables with hyperparameters in `/config`
+Example Slurm scripts are stored in `scripts/` and tables with hyperparameters in `/config`
