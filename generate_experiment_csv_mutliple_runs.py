@@ -24,14 +24,14 @@ branching_factor = {
                 "llama3":
                     {
                         "C++": [16],
-                        "Python": [100]
+                        "Python": [16] # 100
                     }
             },
         "humaneval":
             {
                 "gpt-3.5-turbo":
                     {
-                        "C++": [],
+                        "C++": [2],
                         "Python": [4]
                     },
                 "llama3":
@@ -93,8 +93,8 @@ model_id = {
 }
 
 queue_names = [
-    "defq",
-    "milanq",
+    # "defq",
+    # "milanq",
     # "rome16q",
     "mi50q",
     "mi100q",
@@ -149,7 +149,7 @@ def update_sbatch_file(
         queue = queue_names[random.randint(0, len(queue_names) - 1)]
         sbatch_lines[
             2] = f"#SBATCH --partition={queue}          # partition (queue, see info about the queues below)\n"
-        sbatch_lines[8] = f"#SBATCH --array=1-{number_of_experiments[dataset][lexicase_tag]}%20\n"
+        sbatch_lines[8] = f"#SBATCH --array=1-{number_of_experiments[dataset][lexicase_tag]}%5\n"
         sbatch_lines[36] = f'CONFIG="{output_file[2:]}"\n'
         sbatch_lines[37] = f"OFFSET={offset}\n"
         if dataset == "humaneval":
@@ -169,24 +169,23 @@ def update_sbatch_file(
 
 if __name__ == '__main__':
 
-    dataset = "psb2"
+    random.seed(42)
+    runs = 6
+
     # lexicase_selection = False
     lexicase_selection = True
 
-    random.seed(42)
+    dataset = "psb2"
 
-    for run in range(1, 10):
-        # for model_name, model_name_folder in zip(
-        #         ["gpt-3.5-turbo", "codellama:34b-instruct", "gpt-4o-2024-05-13", "llama3"],
-        #         ["gpt3_5", "codellama_34b", "gpt_4o", "llama3_8b"]
-        # ):
+    for run in range(1, runs + 1):
         for model_name, model_name_folder in zip(
                 ["gpt-3.5-turbo", "llama3"],
                 ["gpt3_5", "llama3_8b"]
         ):
 
             lexicase_tag = "lexicase" if lexicase_selection else "no_lexicase"
-            offset = int(1000 * (run * 100 + model_id[model_name] * 10 + dataset_id[dataset]))
+            offset = int(1000 * (run * 100 + model_id[model_name] * 10 + dataset_id[dataset])) * \
+                     (1 + 9 * int(lexicase_selection))
 
             # bf_psb2_no_lexicase = [
             #     {
@@ -228,6 +227,7 @@ if __name__ == '__main__':
                     'dataset': dataset,
                     'model_name': model_name,
                     'run': run,
+                    'valid_examples': 50,
                     'offset': offset
                 }
                 for language in ('C++', 'Python')
@@ -265,58 +265,54 @@ if __name__ == '__main__':
 
     dataset = "humaneval"
 
-    for run in range(1, 11):
-        # for model_name, model_name_folder in zip(
-        #         ["gpt-3.5-turbo", "codellama:34b-instruct", "gpt-4o-2024-05-13", "llama3"],
-        #         ["gpt3_5", "codellama_34b", "gpt_4o", "llama3_8b"]
-        # ):
+    for run in range(1, runs + 1):
         for model_name, model_name_folder in zip(
                 ["gpt-3.5-turbo", "llama3"],
                 ["gpt3_5", "llama3_8b"]
         ):
 
-            for lexicase_selection in [False]:
-                lexicase_tag = "lexicase" if lexicase_selection else "no_lexicase"
+            lexicase_tag = "lexicase" if lexicase_selection else "no_lexicase"
 
-                for language, language_tag in zip(
-                        ["C++", "Python"], ["cpp", "py"]
-                ):
-                    offset = int(1000 * (
-                            run * 100 + model_id[model_name] * 10 + dataset_id[dataset][lexicase_tag][language]))
+            for language, language_tag in zip(
+                    ["C++", "Python"], ["cpp", "py"]
+            ):
+                offset = int(1000 * (
+                        run * 100 + model_id[model_name] * 10 + dataset_id[dataset][lexicase_tag][language])) * \
+                        (1 + 9 * int(lexicase_selection))
 
-                    experiments = [
-                        {
-                            'problem': problem,
-                            'language': language,
-                            'branching_factor': bf,
-                            'max_programs': 100,
-                            'drafts_per_prompt': bf,
-                            'explanations_per_program': 2,
-                            'repairs_per_explanation': bf,
-                            'beam_width': bf,
-                            'log': 'INFO',
-                            'lexicase_selection': lexicase_selection,
-                            'dataset': dataset,
-                            'model_name': model_name,
-                            'run': run,
-                            'offset': offset
-                        }
-                        for bf in branching_factor[lexicase_tag][dataset][model_name][language]
-                        for problem in humaneval_task_ids[language.lower()]
-                    ]
+                experiments = [
+                    {
+                        'problem': problem,
+                        'language': language,
+                        'branching_factor': bf,
+                        'max_programs': 100,
+                        'drafts_per_prompt': bf,
+                        'explanations_per_program': 2,
+                        'repairs_per_explanation': bf,
+                        'beam_width': bf,
+                        'log': 'INFO',
+                        'lexicase_selection': lexicase_selection,
+                        'dataset': dataset,
+                        'model_name': model_name,
+                        'run': run,
+                        'offset': offset
+                    }
+                    for bf in branching_factor[lexicase_tag][dataset][model_name][language]
+                    for problem in humaneval_task_ids[language.lower()]
+                ]
 
-                    df = update_experiments_list(
-                        input_file="config/experiments.csv",
-                        experiments=experiments,
-                        offset=offset
-                    )
-                    output_file = (f"./config/{dataset}/{model_name_folder}/experiments_"
-                                   f"{dataset}_{model_name_folder}_"
-                                   f"run_{run}_offset_{offset}_"
-                                   f"{lexicase_tag}_{language_tag}_"
-                                   f"mp100_bf_"+"_".join([str(s) for s in branching_factor[lexicase_tag][dataset][model_name][language]])+".csv")
+                df = update_experiments_list(
+                    input_file="config/experiments.csv",
+                    experiments=experiments,
+                    offset=offset
+                )
+                output_file = (f"./config/{dataset}/{model_name_folder}/experiments_"
+                               f"{dataset}_{model_name_folder}_"
+                               f"run_{run}_offset_{offset}_"
+                               f"{lexicase_tag}_{language_tag}_"
+                               f"mp100_bf_"+"_".join([str(s) for s in branching_factor[lexicase_tag][dataset][model_name][language]])+".csv")
 
-                    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-                    df.to_csv(output_file)
-                    update_sbatch_file(model_name, output_file, dataset, lexicase_tag, run, offset, language_tag)
+                Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+                df.to_csv(output_file)
+                update_sbatch_file(model_name, output_file, dataset, lexicase_tag, run, offset, language_tag)
 
