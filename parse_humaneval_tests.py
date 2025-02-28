@@ -89,7 +89,7 @@ int main(){
 }
 
 
-def load_jsonl(input_path: pathlib.Path or str) -> List[dict | any]:
+def load_jsonl(input_path: pathlib.Path or str) -> List[dict]:
     """
     Read list of objects from a json-lines file.
     """
