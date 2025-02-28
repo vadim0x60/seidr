@@ -1,7 +1,7 @@
 from abc import ABC
 from programlib import Program
 
-dont_change = 'Do not change anything'
+dont_change = "Do not change anything"
 
 
 class Evaluation(ABC):
@@ -10,7 +10,7 @@ class Evaluation(ABC):
     Produces a binary pass/fail result, a float score, and a text report
     """
 
-    def __init__(self, SUT: Program, passing_score: float = 1.):
+    def __init__(self, SUT: Program, passing_score: float = 1.0):
         """
         SUT: System Under Test
         passing_score: float score required to pass the evaluation
@@ -38,8 +38,7 @@ class Evaluation(ABC):
 
 
 class IOMatch(Evaluation):
-    def __init__(self, code, language, input, output,
-                 task_description=None):
+    def __init__(self, code, language, input, output, task_description=None):
         program = Program(code, language=language)
         super().__init__(program)
         self.input = input
@@ -61,17 +60,17 @@ class IOMatch(Evaluation):
         if self.check():
             return dont_change
         elif self.test_run.exit_status:
-            return '\n'.join(self.test_run.output_lines)
+            return "\n".join(self.test_run.output_lines)
         else:
-            input = '\n'.join(self.test_run.input_lines)
-            expected_output = '\n'.join(self.test_run.expected_output_lines)
-            output = '\n'.join(self.test_run.output_lines)
+            input = "\n".join(self.test_run.input_lines)
+            expected_output = "\n".join(self.test_run.expected_output_lines)
+            output = "\n".join(self.test_run.output_lines)
             return f"it must return {expected_output} for input {input}, but it returns {output}. "
 
 
 class UnitTest(Evaluation):
     def __init__(self, code, language, test):
-        program = Program(code + '\n' + test, language=language)
+        program = Program(code + "\n" + test, language=language)
         super().__init__(program)
         self.output = None
 
@@ -95,5 +94,7 @@ class UnitTest(Evaluation):
         if self.check():
             return dont_change
         else:
-            self.output = "\n".join(self.output) if type(self.output) == list else self.output
+            self.output = (
+                "\n".join(self.output) if type(self.output) is list else self.output
+            )
             return self.output
