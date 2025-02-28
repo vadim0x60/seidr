@@ -1,28 +1,26 @@
 #!/bin/bash
 #SBATCH --job-name=seidr            # job name of your choice
-#SBATCH --partition=defq          # partition (queue, see info about the queues below)
+#SBATCH --partition=PARTITION          # partition (queue, see info about the queues below)
 #SBATCH --nodes=1                   # -N, the number of nodes that will be allocated to this job
 #SBATCH --ntasks=1                  # -n, specifies how many instances of your command are executed (you want to launch X independent processes)
 #SBATCH --time=05-00:00:00          # time (D-HH:MM:SS)
-#SBATCH --output=/home/anastasiia/nl2ml-codex/scripts/logs/%j-stdout.txt    # file to which STDOUT will be written
-#SBATCH --error=/home/anastasiia/nl2ml-codex/scripts/logs/%j-stderr.txt    # file to which STDERR will be written
-#SBATCH --array=11%20
+#SBATCH --output=OUTPUT_DIR/%j-stdout.txt    # file to which STDOUT will be written
+#SBATCH --error=OUTPUT_DIR/%j-stderr.txt    # file to which STDERR will be written
+#SBATCH --array=1-3%20
 
 module purge
-module use /cm/shared/ex3-modules/latest/modulefiles   # Latest ex3-modules
-module load slurm/21.08.8                              # To load slurm module
+module use MODULES               # Latest ex3-modules
+module load SLURM_VERSION        # To load slurm module
 
-export SLURM_CONF=/cm/shared/apps/slurm/var/etc/slurm/slurm.conf
+export SLURM_CONF=PATH_TO_CONF/slurm.conf
 
 cd ~/nl2ml-codex
 
 # set up API keys and paths
-echo $SLURM_ARRAY_TASK_ID
-echo ".config_simula"
-source .config_simula
+source .config
 
 # activate environment (with venv, if poetry is not available)
-source venv_poetry/bin/activate
+source .venv/bin/activate
 poetry shell
 
 # check python, cuda and packages' versions
@@ -34,8 +32,8 @@ python3 -m pip freeze
 echo -e "--Packages list finished--\n"
 
 
-CONFIG="config/psb2/gpt3_5/experiments_psb2_gpt3_5_run_2_offset_211000_no_lexicase_mp100_bf_2_4_16_1_10_100.csv"
-OFFSET=211000
+CONFIG="config/humaneval/gpt3_5/experiments_humaneval_gpt3_5_run_1_offset_115000_no_lexicase_cpp_mp100_bf_2_4_16_1_10_100.csv"
+OFFSET=115000
 TASK_ID=$(( $SLURM_ARRAY_TASK_ID + $OFFSET ))
 
 
@@ -55,11 +53,11 @@ LEXICASE_SELECTION=$(awk -F ','  -v ArrayTaskID=$TASK_ID 'BEGIN { OFS=" " } { if
 DATASET=$(awk -F ','  -v ArrayTaskID=$TASK_ID 'BEGIN { OFS=" " } { if ($1==ArrayTaskID) {$1="";print $12} }' $CONFIG)
 MODEL_NAME=$(awk -F ','  -v ArrayTaskID=$TASK_ID 'BEGIN { OFS=" " } { if ($1==ArrayTaskID) {$1="";print $13} }' $CONFIG)
 RUN=$(awk -F ','  -v ArrayTaskID=$TASK_ID 'BEGIN { OFS=" " } { if ($1==ArrayTaskID) {$1="";print $14} }' $CONFIG)
-VALID_EXAMPLES=$(awk -F ','  -v ArrayTaskID=$TASK_ID 'BEGIN { OFS=" " } { if ($1==ArrayTaskID) {$1="";print $15} }' $CONFIG)
+
 
 
 # log what we are running
-echo "srun python3 benchmark.py \
+echo "srun python3 benchmark_humaneval.py \
     --task_id $TASK_ID \
     --problem $PROBLEM \
     --language $LANG \
@@ -73,13 +71,12 @@ echo "srun python3 benchmark.py \
     --lexicase_selection $LEXICASE_SELECTION \
     --dataset $DATASET \
     --model_name $MODEL_NAME \
-    --valid_examples $VALID_EXAMPLES \
     --experiment_id $RUN"
 
 
 
 # note that the order of arguments in benchmark.py can be different, so argument names are important
-srun python3 benchmark.py \
+srun python3 benchmark_humaneval.py \
     --task_id $TASK_ID \
     --problem $PROBLEM \
     --language $LANG \
@@ -93,7 +90,6 @@ srun python3 benchmark.py \
     --lexicase_selection $LEXICASE_SELECTION \
     --dataset $DATASET \
     --model_name $MODEL_NAME \
-    --valid_examples $VALID_EXAMPLES \
     --experiment_id $RUN
 
 echo "Job finished"
