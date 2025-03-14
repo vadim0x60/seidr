@@ -3,16 +3,17 @@ import logging
 from programlib import Program, Language
 from typing import Callable, Optional, Iterable, Tuple, List, Generator
 import random
+import time
 
-from seidr.llm import explore_llm
+from seidr.llm import explore_llm, default_batch_size
 from seidr.eval import Evaluation
 
 
 def standard_ranking(
-    candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]],
+        candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]],
 ) -> List[Tuple[str, str, list[Callable[[Program], Evaluation]]]]:
     def avg_score(
-        candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]],
+            candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]],
     ) -> float:
         prompt, code, evals = candidate
         score = sum(e.score() for e in evals) / len(evals)
@@ -22,7 +23,7 @@ def standard_ranking(
 
 
 def lexicase_ranking(
-    candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]],
+        candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]],
 ) -> Tuple[str, str, list[Callable[[Program], Evaluation]]]:
     pool = [evals for prompt, code, evals in candidates]
 
@@ -68,10 +69,10 @@ def lexicase_ranking(
 
 
 def beam_search(
-    beam: List | Generator,
-    update: Callable,
-    ranking: Callable = standard_ranking,
-    beam_width: int = 100,
+        beam: List | Generator,
+        update: Callable,
+        ranking: Callable = standard_ranking,
+        beam_width: int = 100,
 ) -> Generator:
     """Generic evolutionary algorithm for improving anything"""
     while True:
@@ -115,26 +116,25 @@ class SEIDR:
     """Generate, test and debug programs for a set of given problem descriptions and tests"""
 
     def __init__(
-        self,
-        task_name: str,
-        task_description: str,
-        critics: list[Callable[[Program], Evaluation]],
-        model_name: str,
-        language: str | Language,
-        beam_width: int = 10,
-        drafts_per_prompt: int = 10,
-        explanations_per_program: int = 10,
-        repairs_per_explanation: int = 2,
-        lexicase_selection: bool = False,
-        log_metrics: Callable = print,
-        log_attempt: Callable = print_code,
-        log_solution: Callable = lambda *args, **kwargs: print(
-            "This program is the best!"
-        ),
-        log_llm_call: Callable = lambda **kwargs: print(kwargs),
-        max_programs: Optional[int] = None,
-        batch_size: Optional[int] = None,
-        ollama_url: Optional[str] = None,
+            self,
+            task_name: str,
+            task_description: str,
+            critics: list[Callable[[Program], Evaluation]],
+            model_name: str,
+            language: str | Language,
+            beam_width: int = 10,
+            drafts_per_prompt: int = 10,
+            explanations_per_program: int = 10,
+            repairs_per_explanation: int = 2,
+            lexicase_selection: bool = False,
+            log_metrics: Callable = print,
+            log_attempt: Callable = print_code,
+            log_solution: Callable = lambda *args, **kwargs: print('This program is the best!'),
+            log_llm_call: Callable = lambda **kwargs: print(kwargs),
+            max_programs: Optional[int] = None,
+            batch_size: Optional[int] = None,
+            ollama_url: Optional[str] = None,
+            delay: int = 0  # for Anthropic models
     ) -> None:
         self.task_name = task_name
         self.task_description = task_description
@@ -152,11 +152,11 @@ class SEIDR:
         self.log_llm_call = log_llm_call
         self.max_programs = max_programs
         self.ollama_url = ollama_url
+        self.delay = delay
 
         if not batch_size:
-            self.batch_size = 10
-        else:
-            self.batch_size = batch_size
+            batch_size = default_batch_size(model_name)
+        self.batch_size = batch_size
 
     def draft(self, start_code: str = "") -> Iterable[str]:
         """Create a draft solution with the "generate" prompt template
@@ -195,39 +195,39 @@ class SEIDR:
         )
 
         for bug_summary in itertools.islice(
-            explore_llm(
-                t=explain_t,
-                delta_t=explain_delta_t,
-                mode="explain_bugs",
-                model_name=self.model_name,
-                language=self.language,
-                task_name=self.task_name,
-                task_description=self.task_description,
-                code=code,
-                issue=feedback,
-                log_llm_call=self.log_llm_call,
-                batch_size=explain_batch_size,
-                base_url=self.ollama_url,
-            ),
-            self.explanations_per_program,
-        ):
-            for repair in itertools.islice(
                 explore_llm(
-                    t=repair_t,
-                    delta_t=repair_delta_t,
-                    mode="repair",
+                    t=explain_t,
+                    delta_t=explain_delta_t,
+                    mode="explain_bugs",
                     model_name=self.model_name,
                     language=self.language,
                     task_name=self.task_name,
                     task_description=self.task_description,
-                    input=input,
                     code=code,
-                    bug_summary=bug_summary,
+                    issue=feedback,
                     log_llm_call=self.log_llm_call,
-                    batch_size=repair_batch_size,
+                    batch_size=explain_batch_size,
                     base_url=self.ollama_url,
                 ),
-                self.repairs_per_explanation,
+                self.explanations_per_program,
+        ):
+            for repair in itertools.islice(
+                    explore_llm(
+                        t=repair_t,
+                        delta_t=repair_delta_t,
+                        mode="repair",
+                        model_name=self.model_name,
+                        language=self.language,
+                        task_name=self.task_name,
+                        task_description=self.task_description,
+                        input=input,
+                        code=code,
+                        bug_summary=bug_summary,
+                        log_llm_call=self.log_llm_call,
+                        batch_size=repair_batch_size,
+                        base_url=self.ollama_url,
+                    ),
+                    self.repairs_per_explanation,
             ):
                 yield repair
 
@@ -249,7 +249,7 @@ class SEIDR:
         """
 
         def have_kids(
-            candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]],
+                candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]],
         ) -> Tuple[str, str, list[Callable[[Program], Evaluation]]]:
             prompt, code, evals = candidate
             worst_eval = min(evals, key=lambda e: e.score())
@@ -308,5 +308,7 @@ class SEIDR:
 
             if self.max_programs is not None and (idx == self.max_programs - 1):
                 break
+
+            time.sleep(self.delay)
 
         return best_code

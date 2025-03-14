@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "seidr"
-version = "3.1.1"
+version = "3.4.0"
 description = "Synthesize Execute Instruct Debug Rank"
 authors = ["Vadim Liventsev <v.liventsev@tue.nl>", "Anastasia Grishina <anastasiia@simula.no>"]
 license = "MIT"
@@ -17,20 +17,20 @@ psb2 = "^1.1.1"
 openai = "^1.0.0"
 more-itertools = "^10.0.0"
 programlib = "12.0.5"
-wandb = ">=0.15.0"
+wandb = "^0.15.0"
 gitpython = ">=3.0.0,<4.0.0"
 tenacity = ">=8.0.0,<9.0.0"
 pandas = ">=2.0.0"
 fire = "<1.0.0"
-jsonlines = ">=4.0.0"
-jupyterlab = ">=4.0.7"
+jsonlines = "^4.0.0"
 black = "^24.0.0"
 langchain = "^0.2.0"
 pytest-codeblocks = "^0.17.0"
-ollama = "^0.2.1"
 langchain-community = "^0.2.6"
 langchain-core = "^0.2.10"
 langchain-openai = "^0.1.14"
+langchain-anthropic = "~=0.1"
+anthropic = "~=0.29"
 
 [build-system]
 requires = ["poetry-core"]
