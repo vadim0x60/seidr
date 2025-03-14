@@ -52,7 +52,7 @@ def ensure_repo(remote: str, path: pathlib.Path | str, branch: str = None) -> Re
         if branch:
             repo.git.checkout(branch)
     except GitError as e:
-        logging.info(f'Git error in ensure repo {e}. \n{traceback.print_stack()}')
+        logging.info(f'Git error in ensure repo {e}.')
         shutil.rmtree(path, ignore_errors=True)
         repo = Repo.clone_from(remote, path)
 

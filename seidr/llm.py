@@ -3,6 +3,7 @@ import os
 
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI, ChatOllama
+from langchain_anthropic import ChatAnthropic
 from collections.abc import Iterable
 from typing import Callable, Optional
 import re
@@ -22,9 +23,9 @@ def extract_codes(
         language: Language | str
 ) -> str:
     """Extract code out of a message and (if Python) format it with black"""
+
     try:
         code_blocks = list(extract_from_buffer(StringIO(message_content)))
-        code_blocks = [code for code in code_blocks if not bool(code)]
     except RuntimeError as e:
         code_blocks = []
 
@@ -46,6 +47,20 @@ def run_black(code: str) -> str:
         logging.info(e)
         return code
 
+def which_api(model_name):
+    model_name = model_name.lower()
+    if "gpt" in model_name or "deepseek" in model_name:
+        return ChatOpenAI
+    elif "claude" in model_name:
+        return ChatAnthropic
+    else:
+        return ChatOllama
+    
+def default_batch_size(model_name):
+    if which_api(model_name) == ChatOllama:
+        return 1
+    else:
+        return 10
 
 def create_chain(
         temperature: float = 0.,
@@ -55,14 +70,23 @@ def create_chain(
 ) -> LLMChain:
     """Set up a LangChain LLMChain"""
     chat_prompt_template = create_chat_prompt_template(mode)
-    if "gpt" in model_name.lower():
+    api = which_api(model_name)
+
+    if api == ChatOpenAI:
         chat_model = ChatOpenAI(
             model=model_name,
             temperature=temperature,
+            openai_api_base=os.getenv("OPENAI_API_BASE"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_organization=os.getenv("OPENAI_ORG")
         )
-    elif "llama" in model_name.lower():
+    elif api == ChatAnthropic:
+        chat_model = ChatAnthropic(
+            model_name=model_name,
+            temperature=temperature,
+            anthropic_api_key=os.getenv('ANTHROPIC_API_KEY')
+        )
+    elif api == ChatOllama:
         chat_model = ChatOllama(
             base_url=base_url,
             model=model_name,
@@ -90,7 +114,7 @@ def query_llm(
     # Assistants are trained to respond with one message.
     # it is theoretically possible to get more than one message, but it is very unlikely.
     assert all(len(r) == 1 for r in result.generations), "The models are expected to respond with one message"
-    result = [r[0].message.content for r in result.generations if r[0].message.content]
+    result = [r[0].message.content for r in result.generations]
 
     if mode == "repair":
         logging.info(f"Generating repair candidates for bug summary: \n{kwargs['bug_summary']}\n")

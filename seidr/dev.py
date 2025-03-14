@@ -3,8 +3,9 @@ import logging
 from programlib import Program, Language
 from typing import Callable, Optional, Iterable, Tuple, List, Generator
 import random
+import time
 
-from seidr.llm import explore_llm
+from seidr.llm import explore_llm, default_batch_size
 from seidr.eval import Evaluation
 
 
@@ -124,7 +125,8 @@ class SEIDR:
                  log_llm_call: Callable = lambda **kwargs: print(kwargs),
                  max_programs: Optional[int] = None,
                  batch_size: Optional[int] = None,
-                 ollama_url: Optional[str] = None) -> None:
+                 ollama_url: Optional[str] = None,
+                 delay: int = 0) -> None:
         self.task_name = task_name
         self.task_description = task_description
         self.critics = critics
@@ -141,13 +143,11 @@ class SEIDR:
         self.log_llm_call = log_llm_call
         self.max_programs = max_programs
         self.ollama_url = ollama_url
+        self.delay = delay
 
         if not batch_size:
-            if 'gpt' in model_name:
-                self.batch_size = 10
-            else:
-                # Because Ollama doesn't support batch inference
-                self.batch_size = 1
+            batch_size = default_batch_size(model_name)
+        self.batch_size = batch_size          
 
     def draft(self, start_code: str = '') -> Iterable[str]:
         """Create a draft solution with the "generate" prompt template
@@ -285,5 +285,7 @@ class SEIDR:
 
             if self.max_programs is not None and (idx == self.max_programs - 1):
                 break
+
+            time.sleep(self.delay)
 
         return best_code
