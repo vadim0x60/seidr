@@ -10,11 +10,11 @@ from seidr.eval import Evaluation
 
 
 def standard_ranking(
-        candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]]
+        candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]],
 ) -> List[Tuple[str, str, list[Callable[[Program], Evaluation]]]]:
     def avg_score(
-        candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]]
-) -> float:
+            candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]],
+    ) -> float:
         prompt, code, evals = candidate
         score = sum(e.score() for e in evals) / len(evals)
         return score
@@ -23,7 +23,7 @@ def standard_ranking(
 
 
 def lexicase_ranking(
-        candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]]
+        candidates: List[Tuple[str, str, list[Callable[[Program], Evaluation]]]],
 ) -> Tuple[str, str, list[Callable[[Program], Evaluation]]]:
     pool = [evals for prompt, code, evals in candidates]
 
@@ -41,17 +41,23 @@ def lexicase_ranking(
         # Reversing case_order ensures diversity: the first case is always different
         for case in reversed(case_order):
             fitnesses = [pool[idx][case].score() for idx in round_winners]
-            logging.info(f"Lexicase: "
-                         f"idx: fitness values on test number {case}"
-                         f"{[': '.join([str(idx), str(fitness)]) for idx, fitness in zip(round_winners, fitnesses)]}")
+            logging.info(
+                f"Lexicase: "
+                f"idx: fitness values on test number {case}"
+                f"{[': '.join([str(idx), str(fitness)]) for idx, fitness in zip(round_winners, fitnesses)]}"
+            )
             best_fitness = max(fitnesses)
 
-            round_winners = [idx for idx, fitness
-                             in zip(round_winners, fitnesses)
-                             if fitness == best_fitness]
+            round_winners = [
+                idx
+                for idx, fitness in zip(round_winners, fitnesses)
+                if fitness == best_fitness
+            ]
 
-            logging.info(f"Lexicase: "
-                         f"programs that have max test pass rate of value {best_fitness} on test {case}) {round_winners}")
+            logging.info(
+                f"Lexicase: "
+                f"programs that have max test pass rate of value {best_fitness} on test {case}) {round_winners}"
+            )
 
             if len(round_winners) == 1:
                 break
@@ -66,7 +72,7 @@ def beam_search(
         beam: List | Generator,
         update: Callable,
         ranking: Callable = standard_ranking,
-        beam_width: int = 100
+        beam_width: int = 100,
 ) -> Generator:
     """Generic evolutionary algorithm for improving anything"""
     while True:
@@ -84,7 +90,7 @@ def beam_search(
 
 def distribute_heat(heat: float, n: int, batch_size: int) -> Tuple[float, float]:
     """Calculate the start temperature `t` and steps `delta_t`
-    for increasing temperature of an LLM that will be distributed over the batch. """
+    for increasing temperature of an LLM that will be distributed over the batch."""
     # Setting: we generate `n` outputs in total from an LLM by generating `batch_size` outputs at once,
     # Note that we use `batch_size`=1 for langchain models
     if n == 1:
@@ -108,25 +114,28 @@ def print_code(code, **vars):
 
 class SEIDR:
     """Generate, test and debug programs for a set of given problem descriptions and tests"""
-    def __init__(self,
-                 task_name: str,
-                 task_description: str,
-                 critics: list[Callable[[Program], Evaluation]],
-                 model_name: str,
-                 language: str | Language,
-                 beam_width: int = 10,
-                 drafts_per_prompt: int = 10,
-                 explanations_per_program: int = 10,
-                 repairs_per_explanation: int = 2,
-                 lexicase_selection: bool = False,
-                 log_metrics: Callable = print,
-                 log_attempt: Callable = print_code,
-                 log_solution: Callable = lambda *args, **kwargs: print('This program is the best!'),
-                 log_llm_call: Callable = lambda **kwargs: print(kwargs),
-                 max_programs: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 ollama_url: Optional[str] = None,
-                 delay: int = 0) -> None:
+
+    def __init__(
+            self,
+            task_name: str,
+            task_description: str,
+            critics: list[Callable[[Program], Evaluation]],
+            model_name: str,
+            language: str | Language,
+            beam_width: int = 10,
+            drafts_per_prompt: int = 10,
+            explanations_per_program: int = 10,
+            repairs_per_explanation: int = 2,
+            lexicase_selection: bool = False,
+            log_metrics: Callable = print,
+            log_attempt: Callable = print_code,
+            log_solution: Callable = lambda *args, **kwargs: print('This program is the best!'),
+            log_llm_call: Callable = lambda **kwargs: print(kwargs),
+            max_programs: Optional[int] = None,
+            batch_size: Optional[int] = None,
+            ollama_url: Optional[str] = None,
+            delay: int = 0  # for Anthropic models
+    ) -> None:
         self.task_name = task_name
         self.task_description = task_description
         self.critics = critics
@@ -147,27 +156,30 @@ class SEIDR:
 
         if not batch_size:
             batch_size = default_batch_size(model_name)
-        self.batch_size = batch_size          
+        self.batch_size = batch_size
 
-    def draft(self, start_code: str = '') -> Iterable[str]:
+    def draft(self, start_code: str = "") -> Iterable[str]:
         """Create a draft solution with the "generate" prompt template
         that requires first code lines in `start_code`, task description and programming language"""
         batch_size = min(self.batch_size, self.drafts_per_prompt)
         t, delta_t = distribute_heat(1, self.drafts_per_prompt, batch_size)
 
-        return itertools.islice(explore_llm(
-            t=t,
-            delta_t=delta_t,
-            mode="generate",
-            model_name=self.model_name,
-            language=self.language,
-            task_name=self.task_name,
-            task_description=self.task_description,
-            start_code=start_code,
-            log_llm_call=self.log_llm_call,
-            batch_size=batch_size,
-            base_url=self.ollama_url,
-        ), self.drafts_per_prompt)
+        return itertools.islice(
+            explore_llm(
+                t=t,
+                delta_t=delta_t,
+                mode="generate",
+                model_name=self.model_name,
+                language=self.language,
+                task_name=self.task_name,
+                task_description=self.task_description,
+                start_code=start_code,
+                log_llm_call=self.log_llm_call,
+                batch_size=batch_size,
+                base_url=self.ollama_url,
+            ),
+            self.drafts_per_prompt,
+        )
 
     def repair(self, code: str, feedback: str) -> Iterable[str]:
         """Generate `self.explanations_per_program` * `self.repairs_per_explanation` attempts
@@ -176,43 +188,50 @@ class SEIDR:
         repair_batch_size = min(self.batch_size, self.repairs_per_explanation)
 
         explain_t, explain_delta_t = distribute_heat(
-            1, self.explanations_per_program, self.batch_size)
+            1, self.explanations_per_program, self.batch_size
+        )
         repair_t, repair_delta_t = distribute_heat(
-            1, self.repairs_per_explanation, self.batch_size)
+            1, self.repairs_per_explanation, self.batch_size
+        )
 
-        for bug_summary in itertools.islice(explore_llm(
-                t=explain_t,
-                delta_t=explain_delta_t,
-                mode="explain_bugs",
-                model_name=self.model_name,
-                language=self.language,
-                task_name=self.task_name,
-                task_description=self.task_description,
-                code=code,
-                issue=feedback,
-                log_llm_call=self.log_llm_call,
-                batch_size=explain_batch_size,
-                base_url=self.ollama_url
-        ), self.explanations_per_program):
-            for repair in itertools.islice(explore_llm(
-                    t=repair_t,
-                    delta_t=repair_delta_t,
-                    mode="repair",
+        for bug_summary in itertools.islice(
+                explore_llm(
+                    t=explain_t,
+                    delta_t=explain_delta_t,
+                    mode="explain_bugs",
                     model_name=self.model_name,
                     language=self.language,
                     task_name=self.task_name,
                     task_description=self.task_description,
-                    input=input,
                     code=code,
-                    bug_summary=bug_summary,
+                    issue=feedback,
                     log_llm_call=self.log_llm_call,
-                    batch_size=repair_batch_size,
-                    base_url=self.ollama_url
-            ), self.repairs_per_explanation):
+                    batch_size=explain_batch_size,
+                    base_url=self.ollama_url,
+                ),
+                self.explanations_per_program,
+        ):
+            for repair in itertools.islice(
+                    explore_llm(
+                        t=repair_t,
+                        delta_t=repair_delta_t,
+                        mode="repair",
+                        model_name=self.model_name,
+                        language=self.language,
+                        task_name=self.task_name,
+                        task_description=self.task_description,
+                        input=input,
+                        code=code,
+                        bug_summary=bug_summary,
+                        log_llm_call=self.log_llm_call,
+                        batch_size=repair_batch_size,
+                        base_url=self.ollama_url,
+                    ),
+                    self.repairs_per_explanation,
+            ):
                 yield repair
 
-    def develop(self,
-                start_code: str = '') -> str:
+    def develop(self, start_code: str = "") -> str:
         """
         Write a program in a programming language that solves task and passes tests.
         Solve repair-rewrite trade-off with beam search of given beam size
@@ -230,7 +249,7 @@ class SEIDR:
         """
 
         def have_kids(
-                candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]]
+                candidate: Tuple[str, str, list[Callable[[Program], Evaluation]]],
         ) -> Tuple[str, str, list[Callable[[Program], Evaluation]]]:
             prompt, code, evals = candidate
             worst_eval = min(evals, key=lambda e: e.score())
@@ -240,19 +259,18 @@ class SEIDR:
                 yield feedback, code, [critic(code) for critic in self.critics]
 
         drafts = self.draft(start_code)
-        drafts = ((self.task_description, code,
-                   [critic(code) for critic in self.critics])
-                  for code in drafts)
+        drafts = (
+            (self.task_description, code, [critic(code) for critic in self.critics])
+            for code in drafts
+        )
 
-        best_score = float('-inf')
+        best_score = float("-inf")
         best_code = None
 
         ranking = lexicase_ranking if self.lexicase_selection else standard_ranking
         search = beam_search(
-            beam=drafts,
-            update=have_kids,
-            ranking=ranking,
-            beam_width=self.beam_width)
+            beam=drafts, update=have_kids, ranking=ranking, beam_width=self.beam_width
+        )
 
         for idx, candidate in enumerate(search):
             prompt, code, evals = candidate
@@ -260,25 +278,30 @@ class SEIDR:
             avg_score = sum(e.score() for e in evals) / len(evals)
             test_pass_rate = sum(e.check() for e in evals) / len(evals)
 
-            logging.info(f'Prompt:\n{prompt}\n')
-            logging.info(f'The program generated with the prompt above:\n{code}')
+            logging.info(f"Prompt:\n{prompt}\n")
+            logging.info(f"The program generated with the prompt above:\n{code}")
 
-            metrics = {
-                'idx': idx,
-                'avg_score': avg_score,
-                'pass_rate': test_pass_rate
-            }
+            metrics = {"idx": idx, "avg_score": avg_score, "pass_rate": test_pass_rate}
 
             self.log_metrics(metrics)
-            self.log_attempt(code, idx=idx,
-                             prompt=prompt, test_pass_rate=test_pass_rate)
+            self.log_attempt(
+                code, idx=idx, prompt=prompt, test_pass_rate=test_pass_rate
+            )
 
             if avg_score > best_score:
                 best_score = avg_score
                 best_code = code
-                self.log_metrics({f'best_{metric}': val for metric, val in metrics.items()})
-                logging.info('\n'.join([f'\nbest_{metric}: {val}\n' for metric, val in metrics.items()]))
-                self.log_solution(code, idx=idx, prompt=prompt, test_pass_rate=test_pass_rate)
+                self.log_metrics(
+                    {f"best_{metric}": val for metric, val in metrics.items()}
+                )
+                logging.info(
+                    "\n".join(
+                        [f"\nbest_{metric}: {val}\n" for metric, val in metrics.items()]
+                    )
+                )
+                self.log_solution(
+                    code, idx=idx, prompt=prompt, test_pass_rate=test_pass_rate
+                )
 
                 if test_pass_rate == 1:
                     break

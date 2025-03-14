@@ -1,24 +1,49 @@
-# Synthesize Execute Instruct Debug Rank
+New! Keyboard shortcuts … Drive keyboard shortcuts have been updated to give you first-letters navigation
+# SEIDR: Synthesize, Execute, Instruct, Debug, and Rank
 
-A framework for AI-assisted program synthesis.
-Given a problem description and some input-output examples, the framework generates a program that solves the problem.
+This is a replication package for SEIDR framework, which is AI-assisted program synthesis.
+Given a problem description and some input-output examples, the framework generates a program that solves the problem. 
+The framework has been published in the GECCO'23 Proceedings and is undergoing revision for the extension in the ACM TELO journal. 
 
-## Paper
+## TELO paper: _Fully Autonomous Programming using Iterative Multi-Agent Debugging with Large Language Models_
+## Original GECCO'23 paper extended to TELO: _[Fully Autonomous Programming with Large Language Models](https://dl.acm.org/doi/abs/10.1145/3583131.3590481)_
 
-You can find an in-depth discussion of this tool, the philosophy it implements and its usage in our paper, [Fully Autonomous Programming with Large Language Models](https://dl.acm.org/doi/abs/10.1145/3583131.3590481). Consider citing it if you use SEIDR in your research.
+Consider citing the work if you use SEIDR in your research.
 
-## Usage
+## Contents
 
-```
-from seidr import dev
-help(dev)
-```
+The current `src/` folder is organized as follows:
+
+* [seidr](seidr) 				- code for running SEIDR on PSB2 (with `benchmark.py`) or HumanEval (with `benchmark_humaneval.py`)
+* [scripts](scripts) 			- Slurm scripts used to run SEIDR with a specific model on a specific dataset 
+* [config](config)		        - csv tables of experimental setup, where each row corresponds to one problem in a dataset, each table is in a subfolder named after the dataset name
+* [psb2-meta](psb2-meta)		- natural language descriptions of PSB2 problems
 
 ## Reproducing the experiments from our paper
 
 The experiments are contained in `benchmark.py` and `benchmark_humaneval.py` files. When you run this file, the AI-generated programs are commited to a dedicated github repository, while the metrics (i.e. how many tests every program passes) will be logged in your [Weights and Biases](https://wandb.ai)
 
 ### Prerequisites 
+
+#### Install dependencies
+
+With [Poetry](https://python-poetry.org/docs/) and `Python 3.11` (or later versions):
+```bash
+cd SEIDR_TELO
+poetry env use python3.11 
+poetry install
+```
+
+With Python `venv` module:
+```bash
+cd SEIDR_TELO/src
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r src/requirements_src.txt
+```
+
+Note that depending on your Python version management, you may need to change `python3.11` to another alias or Python executable.
+
 #### Set up Weights and Biases
 
 1. Create an account on [Weights and Biases](https://wandb.ai)
@@ -98,7 +123,7 @@ python3 benchmark.py \
     --experiment_id 0
 ```
 
-To run an example with SEIDR with Llama 3 served by Ollama at `URL:PORT` on HumanEval with lexicase, run the following:
+To run an example with SEIDR with Llama 3 served by Ollama at `URL:PORT` (`localhost:11434`) if you run Ollama locally) on HumanEval with lexicase, run the following:
 ```
 python3 benchmark_humaneval.py \
     --task_id 0 \
@@ -119,4 +144,5 @@ python3 benchmark_humaneval.py \
 
 ```
 
-Example Slurm scripts are stored in `scripts/` and tables with hyperparameters in `/config`
+Example Slurm scripts are stored in `scripts/` and tables with hyperparameters in `/config`.
+
