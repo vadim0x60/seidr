@@ -1,11 +1,24 @@
 # Synthesize Execute Instruct Debug Rank
 
-A framework for AI-assisted program synthesis.
-Given a problem description and some input-output examples, the framework generates a program that solves the problem.
+This is a replication package for SEIDR framework, which is AI-assisted program synthesis.
+Given a problem description and some input-output examples, the framework generates a program that solves the problem. 
+The framework has been published in the GECCO'23 Proceedings and is undergoing revision for the extension in the ACM TELO journal. 
 
-## Paper
 
-You can find an in-depth discussion of this tool, the philosophy it implements and its usage in our paper, [Fully Autonomous Programming with Large Language Models](https://dl.acm.org/doi/abs/10.1145/3583131.3590481). Consider citing it if you use SEIDR in your research.
+## TELO journal paper: _[Fully Autonomous Programming using Iterative Multi-Agent Debugging with Large Language Models](https://dl.acm.org/doi/10.1145/3719351)_
+## Original GECCO'23 conference paper extended to the TELO journal: _[Fully Autonomous Programming with Large Language Models](https://dl.acm.org/doi/abs/10.1145/3583131.3590481)_
+
+Consider citing the work if you use SEIDR in your research.
+
+## Contents
+
+The current `src/` folder is organized as follows:
+
+* [seidr](./seidr) 				- code for running SEIDR on PSB2 (with `benchmark.py`) or HumanEval (with `benchmark_humaneval.py`)
+* [scripts](./scripts) 			- Slurm scripts used to run SEIDR with a specific model on a specific dataset 
+* [config](./config)		        - csv tables of experimental setup, where each row corresponds to one problem in a dataset, each table is in a subfolder named after the dataset name
+* [psb2-meta](./psb2-meta)		- natural language descriptions of PSB2 problems
+
 
 ## Usage
 
@@ -16,16 +29,40 @@ help(dev)
 
 ## Reproducing the experiments from our paper
 
-The experiments are contained in `benchmark.py` and `benchmark_humaneval.py` files. When you run this file, the AI-generated programs are commited to a dedicated github repository, while the metrics (i.e. how many tests every program passes) will be logged in your [Weights and Biases](https://wandb.ai)
+The experiments are contained in `benchmark.py` and `benchmark_humaneval.py` files. When you run this file, the AI-generated programs are commited to a dedicated github repository, while the metrics (i.e., how many tests every program passes) will be logged in your [Weights and Biases](https://wandb.ai)
 
 ### Prerequisites 
+
+#### Install dependencies
+Either install the project with Poetry or install seidr from pypi: 
+```bash
+pip install seidr
+```
+
+With [Poetry](https://python-poetry.org/docs/) and `Python 3.11` (or later versions):
+```bash
+cd SEIDR_TELO
+poetry env use python3.11 
+poetry install
+```
+
+With Python `venv` module:
+```bash
+cd SEIDR_TELO/src
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r src/requirements_src.txt
+```
+
+Note that depending on your Python version management, you may need to change `python3.11` to another alias or Python executable.
+
 #### Set up Weights and Biases
 
 1. Create an account on [Weights and Biases](https://wandb.ai)
 2. Install the [Weights and Biases](https://docs.wandb.com/library/install) library
 3. Run `wandb login` and follow the instructions
 
-#### Set up a GitHub repository
+#### Set up a GitHub repository for solutions
 
 1. Go to [github](https://github.com), log in to the account that's going to push AI-generated code. Remember the $username and $email for that account.
 2. Go [here](https://github.com/settings/tokens?type=beta) and generate an access $token
@@ -78,7 +115,7 @@ and run it with `sbatch run.sh --array=1-500`.
 If not, run `TASK_ID=n python benchmark.py` to re-run one of our experiments exactly, 
 or set the parameters yourself as below.
 
-For example, for basement problem in PSB2, run SEIDR without lexicase selection as follows:
+For example, for `basement` problem in PSB2, run SEIDR without lexicase selection as follows:
 ```
 python3 benchmark.py \
     --task_id 0 \
